@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post } from '@nestjs/common';
+import { Body, Controller, Get, Inject, Param, Post } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { InboundDto, OutboundDto } from './dto/inventory.dto';
 import { InventoryService } from './inventory.service';
@@ -6,7 +6,7 @@ import { InventoryService } from './inventory.service';
 @ApiTags('inventory')
 @Controller('inventory')
 export class InventoryController {
-  constructor(private readonly inventoryService: InventoryService) {}
+  constructor(@Inject(InventoryService) private readonly inventoryService: InventoryService) {}
 
   @Post('inbound')
   inbound(@Body() input: InboundDto) {

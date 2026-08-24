@@ -1,6 +1,7 @@
 import {
   ConflictException,
   Injectable,
+  Inject,
   ServiceUnavailableException,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -20,8 +21,8 @@ type UserRow = RowDataPacket & {
 @Injectable()
 export class AuthService {
   constructor(
-    private readonly database: DatabaseService,
-    private readonly jwt: JwtService,
+    @Inject(DatabaseService) private readonly database: DatabaseService,
+    @Inject(JwtService) private readonly jwt: JwtService,
   ) {}
 
   async login(input: LoginDto) {

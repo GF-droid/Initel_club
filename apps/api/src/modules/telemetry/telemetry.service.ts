@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable } from '@nestjs/common';
 import { RowDataPacket } from 'mysql2';
 import { DatabaseService } from '../../database/database.service';
 import { ROOM_IDS, RoomId, isRoomId } from './telemetry.constants';
@@ -7,7 +7,7 @@ type ReadingRow = RowDataPacket & { wendu: number | string; shidu: number | stri
 
 @Injectable()
 export class TelemetryService {
-  constructor(private readonly database: DatabaseService) {}
+  constructor(@Inject(DatabaseService) private readonly database: DatabaseService) {}
 
   async getLatestForAllRooms() {
     const records = await Promise.all(

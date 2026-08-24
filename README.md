@@ -116,6 +116,6 @@ server {
 
 ## 常见启动问题
 
-如果以 `npm run dev:full` 启动时，后端报错 `Cannot read properties of undefined (reading 'getOrThrow')`，请拉取包含显式 `ConfigService` 注入修复的最新代码后重新安装并启动。该问题源于开发脚本使用的 `tsx` 不会可靠地产生 Nest 所需的构造函数类型元数据；生产构建虽可能正常，开发模式会在初始化数据库服务时退出，继而使前端出现 `/api` 的 `ECONNREFUSED`。
+如果以 `npm run dev:full` 启动时，后端报错 `Cannot read properties of undefined`（例如读取 `getOrThrow` 或 `login`），请拉取包含显式 Nest 依赖注入修复的最新代码后重新启动。该问题源于开发脚本使用的 `tsx` 不会可靠地产生 Nest 所需的构造函数类型元数据；生产构建虽可能正常，开发模式会把服务依赖注入为 `undefined`，继而使对应 API 失败或使前端出现 `/api` 的 `ECONNREFUSED`。
 
 `npm warn Unknown global config "--init.module"` 是服务器上旧版 npm 配置带来的弃用警告，不是 API 无法启动的原因。可使用 `npm config delete init.module --location=global` 清理；若仍出现，请检查并删除用户目录 `~/.npmrc` 中的 `init.module` 或 `--init.module` 项，然后重新打开终端。

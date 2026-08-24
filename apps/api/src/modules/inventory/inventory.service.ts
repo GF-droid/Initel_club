@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable } from '@nestjs/common';
 import { ResultSetHeader, RowDataPacket } from 'mysql2';
 import { DatabaseService } from '../../database/database.service';
 import { isRoomId, RoomId } from '../telemetry/telemetry.constants';
@@ -17,7 +17,7 @@ type InventoryRow = RowDataPacket & {
 
 @Injectable()
 export class InventoryService {
-  constructor(private readonly database: DatabaseService) {}
+  constructor(@Inject(DatabaseService) private readonly database: DatabaseService) {}
 
   async inbound(input: InboundDto) {
     const roomId = this.requireRoom(input.home);

@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Query } from '@nestjs/common';
+import { Controller, Get, Inject, Param, Query } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { CompareQueryDto, HistoryQueryDto, LimitQueryDto } from './dto/telemetry-query.dto';
 import { TelemetryService } from './telemetry.service';
@@ -6,7 +6,7 @@ import { TelemetryService } from './telemetry.service';
 @ApiTags('telemetry')
 @Controller('telemetry')
 export class TelemetryController {
-  constructor(private readonly telemetryService: TelemetryService) {}
+  constructor(@Inject(TelemetryService) private readonly telemetryService: TelemetryService) {}
 
   @Get('rooms')
   getAllRooms() {
