@@ -1,7 +1,8 @@
 const express = require('express');
 const mysql = require('mysql2/promise');
 const cors = require('cors');
-require('dotenv').config();
+const path = require('path');
+require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
 
 const app = express();
 const PORT = process.env.PORT || 15010;
@@ -12,10 +13,11 @@ app.use(express.json());
 
 // 数据库配置
 const dbConfig = {
-  host: process.env.DB_HOST || '111.230.197.156',
-  user: process.env.DB_USER || 'root',
+  host: process.env.DB_HOST,
+  port: Number(process.env.DB_PORT || 3306),
+  user: process.env.DB_USER,
   password: process.env.DB_PASSWORD,
-  database: process.env.DB_NAME || 'jiuhe'
+  database: process.env.DB_NAME
 };
 
 // 房间列表
