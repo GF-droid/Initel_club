@@ -1,4 +1,4 @@
-import { Injectable, OnModuleDestroy } from '@nestjs/common';
+import { Inject, Injectable, OnModuleDestroy } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createPool, Pool, PoolConnection } from 'mysql2/promise';
 
@@ -6,7 +6,7 @@ import { createPool, Pool, PoolConnection } from 'mysql2/promise';
 export class DatabaseService implements OnModuleDestroy {
   private readonly pool: Pool;
 
-  constructor(private readonly config: ConfigService) {
+  constructor(@Inject(ConfigService) private readonly config: ConfigService) {
     this.pool = createPool({
       host: this.config.getOrThrow<string>('DB_HOST'),
       port: Number(this.config.get<string>('DB_PORT') ?? 3306),

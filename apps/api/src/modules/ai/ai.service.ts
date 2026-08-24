@@ -1,4 +1,4 @@
-import { Injectable, ServiceUnavailableException } from '@nestjs/common';
+import { Inject, Injectable, ServiceUnavailableException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import OpenAI from 'openai';
 import { ChatDto, ReportDto } from './dto/ai.dto';
@@ -12,7 +12,7 @@ const SYSTEM_PROMPT = `你是智能仓储 AI 助手，为仓库管理系统提�
 export class AiService {
   private readonly histories = new Map<string, HistoryMessage[]>();
 
-  constructor(private readonly config: ConfigService) {}
+  constructor(@Inject(ConfigService) private readonly config: ConfigService) {}
 
   getSuggestions() {
     return {
