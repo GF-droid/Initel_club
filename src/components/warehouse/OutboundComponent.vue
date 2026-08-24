@@ -70,7 +70,7 @@
 <script setup>
 import { reactive, ref, computed } from 'vue'
 import { ElMessage } from 'element-plus'
-import axios from "axios";
+import axios from '@/store/SetAxios'
 
 const form = reactive({
   roomNumber: '',
@@ -95,7 +95,7 @@ const selectedItemsDisplay = computed(() => {
 
 // 自定义房间名称
 const customRoomNames = [
-  '101', '102', '108', '110', '113',
+  '101', '102', '108', '109', '113',
   '115', '116', '117', '118', '119'
 ]
 
@@ -127,10 +127,11 @@ const fetchRoomItems = async () => {
     console.log('🔍 获取房间物品，房间表名:', form.roomNumber)
     
     // 发送实际的 API 请求
-    const response = await axios.post(`http://localhost:15010/query?tableName=${form.roomNumber}`)
+    const roomId = extractRoomNumber(form.roomNumber)
+    const response = await axios.get(`/inventory/rooms/${roomId}/items`)
     
     console.log('✅ 获取房间物品响应:', response.data)
-    roomItems.value[form.roomNumber] = response.data
+    roomItems.value[form.roomNumber] = response.data.data
     
   } catch (error) {
     console.error('获取房间物品失败:', error)
@@ -217,10 +218,10 @@ const onSubmit = async () => {
     }
 
     console.log('📤 出库请求数据:', payload)
-    console.log('🔗 请求URL:', 'http://localhost:15010/outbound')
+    console.log('🔗 请求URL:', '/inventory/outbound')
 
     // 🔴 修复：使用正确的出库API地址
-    const response = await axios.post(`http://localhost:15010/outbound`, payload)
+    const response = await axios.post('/inventory/outbound', payload)
 
     console.log('✅ 出库响应:', response.data)
 

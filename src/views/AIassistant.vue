@@ -211,7 +211,7 @@ const messageList = ref(null)
 const userInput = ref('')
 
 // API 配置
-const API_BASE_URL = 'http://localhost:3001/api'
+const API_BASE_URL = `${import.meta.env.VITE_API_BASE_URL || '/api/v1'}/ai`
 const sessionId = ref(`session_${Date.now()}_${Math.random().toString(36).substr(2)}`)
 
 // 使用统一的消息数组

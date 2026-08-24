@@ -1,6 +1,6 @@
 // stores/loginAuthStore.ts
 import { defineStore } from 'pinia';
-import axios from "axios";
+import axios from "@/store/SetAxios";
 import { useRouter } from 'vue-router';
 import { ElNotification } from 'element-plus';
 
@@ -16,7 +16,7 @@ export const useLoginAuthStore = defineStore('loginAuth', {
             try {
                 console.log('🔄 正在连接到服务器...');
 
-                const response = await axios.post('http://localhost:3000/api/auth/login', {
+                const response = await axios.post('/auth/login', {
                     username,
                     password
                 });
@@ -82,6 +82,11 @@ export const useLoginAuthStore = defineStore('loginAuth', {
             this.user = null;
             localStorage.removeItem('user');
             console.log('✅ 认证信息清除完成');
+        },
+
+        async logout(_username?: string) {
+            this.clearAuth();
+            return true;
         }
     },
 

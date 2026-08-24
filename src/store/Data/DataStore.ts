@@ -35,7 +35,7 @@ export const useDataStore = defineStore('data', {
                 console.log('开始获取房间数据:', roomid);
 
                 // 第一个房间数据
-                const response1 = await axios.get<DataItem[]>(`/data/${roomid[0]}`, {
+                const response1 = await axios.get<DataItem[]>(`/telemetry/rooms/${roomid[0]}`, {
                     timeout: 10000,
                 });
                 console.log(`房间 ${roomid[0]} 数据:`, response1.data);
@@ -57,7 +57,7 @@ export const useDataStore = defineStore('data', {
                 }
 
                 // 第二个房间数据 - 修复了这里的错误
-                const response2 = await axios.get<DataItem[]>(`/data/${roomid[1]}`, {
+                const response2 = await axios.get<DataItem[]>(`/telemetry/rooms/${roomid[1]}`, {
                     timeout: 10000,
                 });
                 console.log(`房间 ${roomid[1]} 数据:`, response2.data);
@@ -106,7 +106,7 @@ export const useDataStore = defineStore('data', {
             try {
                 console.log('🔄 开始获取全部数据...');
 
-                const response = await axios.get<DataItem[]>("/data/all", {
+                const response = await axios.get<DataItem[]>("/telemetry/rooms", {
                     timeout: 10000,
                     withCredentials: false
                 });
@@ -181,7 +181,7 @@ export const useDataStore = defineStore('data', {
             try {
                 console.log(`获取房间 ${roomId} 数据 (编号: ${roomNumber})`);
 
-                const response = await axios.get<DataItem[]>(`/data/${roomId}`, {
+                const response = await axios.get<DataItem[]>(`/telemetry/rooms/${roomId}`, {
                     timeout: 10000,
                 });
 

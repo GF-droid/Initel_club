@@ -20,7 +20,7 @@ export const useChartDataStore = defineStore("ChartStore", () => {
     const getdatalist1 = async (roomid: number) => {
         try {
             console.log(`📊 获取房间 ${roomid} 图表数据...`);
-            const response = await axios.get(`/data/${roomid}`);
+            const response = await axios.get(`/telemetry/rooms/${roomid}`);
 
             if (response.status == 200 && Array.isArray(response.data)) {
                 console.log(`✅ 房间 ${roomid} 获取到 ${response.data.length} 条数据`);
@@ -57,7 +57,7 @@ export const useChartDataStore = defineStore("ChartStore", () => {
     const getdatalist2 = async (roomid: number) => {
         try {
             console.log(`📊 获取房间 ${roomid} 图表数据...`);
-            const response = await axios.get(`/data/${roomid}`);
+            const response = await axios.get(`/telemetry/rooms/${roomid}`);
 
             if (response.status == 200 && Array.isArray(response.data)) {
                 console.log(`✅ 房间 ${roomid} 获取到 ${response.data.length} 条数据`);

@@ -5,7 +5,10 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:api": "npm --prefix apps/api run dev",
+    "dev:full": "run-p dev dev:api",
     "build": "run-p type-check \"build-only {@}\" --",
+    "build:api": "npm --prefix apps/api run build",
     "preview": "vite preview",
     "build-only": "vite build",
     "type-check": "vue-tsc --build --force",

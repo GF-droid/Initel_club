@@ -148,7 +148,7 @@ const fetchItemsFromServer = async () => {
   loading.value = true
   try {
     console.log('开始获取数据...')
-    const response = await axios.get('/all')
+    const response = await axios.get('/inventory/items')
     console.log('后端返回的数据:', response.data)
 
     // 直接使用后端返回的字段名

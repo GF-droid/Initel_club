@@ -71,7 +71,8 @@ const handleLogout = async () => {
       return
     }
     console.error('退出失败:', error)
-    ElMessage.error('退出失败: ' + (error.message || '未知错误'))
+    const message = error instanceof Error ? error.message : '未知错误'
+    ElMessage.error('退出失败: ' + message)
   }
 }
 </script>

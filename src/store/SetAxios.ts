@@ -3,7 +3,7 @@ import axios from 'axios';
 // 创建一个函数来返回配置好的 axios 实例
 export function getAxiosInstance() {
     const instance = axios.create({
-        baseURL: 'http://localhost:15010',
+        baseURL: import.meta.env.VITE_API_BASE_URL || '/api/v1',
         timeout: 30000,
         withCredentials: false // 改为 false 解决 CORS 问题
     });

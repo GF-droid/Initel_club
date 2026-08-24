@@ -28,7 +28,6 @@ export default defineConfig({
       '/api': {
         target: 'http://localhost:15010', // 替换为您的后端服务器地址
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api/, ''),
         secure: false,
         ws: true
       }

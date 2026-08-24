@@ -31,7 +31,7 @@ export const useInboundStore = defineStore('inbound', () => {
     { value: '101', label: '101房间 ' },
     { value: '102', label: '102房间 ' },
     { value: '108', label: '108房间 ' },
-    { value: '110', label: '110房间 ' },
+    { value: '109', label: '109房间 ' },
     { value: '113', label: '113房间 ' },
     { value: '115', label: '115房间 ' },
     { value: '116', label: '116房间 ' },
@@ -47,7 +47,7 @@ export const useInboundStore = defineStore('inbound', () => {
   const onSubmit = async () => {
     submitting.value = true
     try {
-      const response = await axios.post<{ success: boolean; message?: string }>(`/inbound?tableName=data${form.home}`, form)
+      const response = await axios.post<{ success: boolean; message?: string }>('/inventory/inbound', form)
         console.log(response);
         
       if (response.status == 200) {
@@ -65,22 +65,14 @@ export const useInboundStore = defineStore('inbound', () => {
   }
 
   const onReset = () => {
-    Object.keys(form).forEach(key => {
-      switch (key) {
-        case 'quantity':
-          form[key] = 1;
-          break;
-        case 'unitPrice':
-          form[key] = 0;
-          break;
-        case 'roomNumber':
-        case 'itemName':
-        case 'unit':
-        case 'remarks':
-          form[key] = '';
-          break;
-      }
-    });
+    Object.assign(form, {
+      home: '',
+      name: '',
+      number: 1,
+      price: 0,
+      unity: '',
+      content: ''
+    })
   }
 
   return {

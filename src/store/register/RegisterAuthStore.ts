@@ -12,7 +12,7 @@ export const useRegisterAuthStore = defineStore("registerAuth", {
     actions: {
         async submit_register(registerParams:any){
             try {   
-                const response = await axios.post('/register',registerParams)
+                const response = await axios.post('/auth/register',registerParams)
                     if (response.data.code === 200) {
                         this.message = response.data.message;
                         this.code = response.data.code;
@@ -54,4 +54,3 @@ export const useRegisterAuthStore = defineStore("registerAuth", {
         }
     }}
 )
-    
