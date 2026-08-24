@@ -3,6 +3,7 @@
     <canvas ref="particleCanvas"></canvas>
     <div class="title-area">
       <h1>库房控制</h1>
+      <p>实时查看各库房环境状态，并管理空调设备</p>
     </div>
     <div class="content-card">
       <RoomCard />
@@ -164,11 +165,72 @@ canvas {
   /* 添加发光效果 */
 }
 
+/* 页面布局优化：减少背景特效占比，让数据成为视觉中心 */
+.area {
+  min-height: 100%;
+  height: 100%;
+  padding: 28px clamp(16px, 3vw, 48px);
+  background: linear-gradient(135deg, #eef5fb 0%, #f8fbff 52%, #e7f1fa 100%);
+  overflow: auto;
+}
+
+canvas {
+  opacity: 0.14;
+}
+
+.title-area {
+  position: relative;
+  top: auto;
+  left: auto;
+  transform: none;
+  z-index: 2;
+  margin: 0 auto 22px;
+  max-width: 1440px;
+  text-align: left;
+}
+
+.title-area h1 {
+  margin: 0;
+  color: #173f67;
+  font-size: clamp(26px, 3vw, 36px);
+  letter-spacing: 0.02em;
+  text-shadow: none;
+}
+
+.title-area p {
+  margin: 8px 0 0;
+  color: #6b7c93;
+  font-size: 14px;
+}
+
+.content-card {
+  position: relative;
+  top: auto;
+  left: auto;
+  transform: none;
+  z-index: 2;
+  width: min(1440px, 100%);
+  max-width: 1440px;
+  height: auto;
+  min-height: 0;
+  margin: 0 auto;
+  padding: clamp(16px, 2.5vw, 28px);
+  align-items: stretch;
+  border: 1px solid rgba(207, 222, 237, 0.9);
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.88);
+  box-shadow: 0 18px 45px rgba(38, 74, 111, 0.12);
+  color: #243b53;
+}
+
 /* 媒体查询，针对不同屏幕尺寸调整样式 */
 @media (max-width: 768px) {
+  .area {
+    padding: 20px 14px;
+  }
+
   .content-card {
-    padding: 2rem;
-    height: 90%;
+    padding: 14px;
   }
 
   .content-card h1 {
@@ -202,5 +264,47 @@ canvas {
   .title-area h1 {
     font-size: 2rem;
   }
+}
+
+/* 固定工作台：与实时数据页统一深色风格，当前视口内完成展示 */
+.area {
+  box-sizing: border-box;
+  height: 100%;
+  min-height: 0;
+  padding: 18px clamp(14px, 2vw, 28px);
+  background: #252a2f;
+  overflow: hidden;
+}
+
+canvas {
+  opacity: 0.08;
+}
+
+.title-area {
+  margin: 0 auto 12px;
+  max-width: 1480px;
+}
+
+.title-area h1 {
+  color: #edf3f8;
+  font-size: clamp(24px, 2.4vw, 32px);
+}
+
+.title-area p {
+  color: #aebbc6;
+}
+
+.content-card {
+  box-sizing: border-box;
+  width: min(1480px, 100%);
+  height: calc(100% - 74px);
+  max-width: 1480px;
+  margin: 0 auto;
+  padding: 18px;
+  border: 1px solid #414b55;
+  border-radius: 18px;
+  background: #30373e;
+  box-shadow: 0 14px 32px rgba(0, 0, 0, 0.22);
+  overflow: hidden;
 }
 </style>

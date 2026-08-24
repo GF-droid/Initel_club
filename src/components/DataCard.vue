@@ -1,193 +1,180 @@
 <template>
-    <div class="container">
-        <div class="card-row" v-for="row in 2" :key="row">
-            <div class="card-scroll">
-                <el-card v-for="(card, index) in cardsInRow(row)" :key="`card-${row}-${index}`" class="card"
-                    shadow="hover">
-                    <template #header>
-                        <div class="card-header">
-                            <span>{{ card.name }}</span>
-                        </div>
-                    </template>
-                    <div class="card-content">
-                        <div>{{ card.content1 }}</div>
-                        <div>{{ card.content2 }}</div>
-                    </div>
-                </el-card>
-                <el-card v-for="(card, index) in cardsInRow(row)" :key="`card-${row}-${index}-duplicate`" class="card"
-                    shadow="hover">
-                    <template #header>
-                        <div class="card-header">
-                            <span>{{ card.name }}</span>
-                        </div>
-                    </template>
-                    <div class="card-content">
-                        <div>{{ card.content1 }}</div>
-                        <div>{{ card.content2 }}</div>
-                    </div>
-                </el-card>
-            </div>
+  <div class="container">
+    <el-card v-for="card in cards" :key="card.name" class="card" shadow="never">
+      <div class="card-header">
+        <span class="room-dot"></span>
+        <span>{{ card.name }}</span>
+        <el-tag size="small" type="success" effect="light">在线</el-tag>
+      </div>
+      <div class="card-content">
+        <div class="metric temperature">
+          <span class="metric-label">温度</span>
+          <strong>{{ card.temperature }}<small>°C</small></strong>
         </div>
-    </div>
+        <div class="metric humidity">
+          <span class="metric-label">湿度</span>
+          <strong>{{ card.humidity }}<small>%</small></strong>
+        </div>
+      </div>
+    </el-card>
+  </div>
 </template>
 
 <script setup lang="ts">
-import { ElCard } from 'element-plus'
-import { ref, computed, watchEffect, onMounted, onUnmounted } from 'vue'
-import { useDataStore } from "@/store/Data/DataStore";
-import { storeToRefs } from 'pinia';
+import { ref, watchEffect, onMounted, onUnmounted } from 'vue'
+import { useDataStore } from '@/store/Data/DataStore'
+import { storeToRefs } from 'pinia'
 
 const dataStore = useDataStore()
 const {
-    temp1, hum1, temp2, hum2, temp3, hum3, temp4, hum4, temp5, hum5,
-    temp6, hum6, temp7, hum7, temp8, hum8, temp9, hum9, temp10, hum10
+  temp1, hum1, temp2, hum2, temp3, hum3, temp4, hum4, temp5, hum5,
+  temp6, hum6, temp7, hum7, temp8, hum8, temp9, hum9, temp10, hum10,
 } = storeToRefs(dataStore)
 
-// 删除重复的 onBeforeMount 和 localData，直接使用 store 数据
-
 const cards = ref([
-    { name: '101房间', content1: `温度：${temp1.value}℃`, content2: `湿度：${hum1.value}%` },
-    { name: '102房间', content1: `温度：${temp2.value}℃`, content2: `湿度：${hum2.value}%` },
-    { name: '108房间', content1: `温度：${temp3.value}℃`, content2: `湿度：${hum3.value}%` },
-    { name: '109房间', content1: `温度：${temp4.value}℃`, content2: `湿度：${hum4.value}%` },
-    { name: '113房间', content1: `温度：${temp5.value}℃`, content2: `湿度：${hum5.value}%` },
-    { name: '115房间', content1: `温度：${temp6.value}℃`, content2: `湿度：${hum6.value}%` },
-    { name: '116房间', content1: `温度：${temp7.value}℃`, content2: `湿度：${hum7.value}%` },
-    { name: '117房间', content1: `温度：${temp8.value}℃`, content2: `湿度：${hum8.value}%` },
-    { name: '118房间', content1: `温度：${temp9.value}℃`, content2: `湿度：${hum9.value}%` },
-    { name: '119房间', content1: `温度：${temp10.value}℃`, content2: `湿度：${hum10.value}%` }
+  { name: '101房间', temperature: temp1.value, humidity: hum1.value },
+  { name: '102房间', temperature: temp2.value, humidity: hum2.value },
+  { name: '108房间', temperature: temp3.value, humidity: hum3.value },
+  { name: '109房间', temperature: temp4.value, humidity: hum4.value },
+  { name: '113房间', temperature: temp5.value, humidity: hum5.value },
+  { name: '115房间', temperature: temp6.value, humidity: hum6.value },
+  { name: '116房间', temperature: temp7.value, humidity: hum7.value },
+  { name: '117房间', temperature: temp8.value, humidity: hum8.value },
+  { name: '118房间', temperature: temp9.value, humidity: hum9.value },
+  { name: '119房间', temperature: temp10.value, humidity: hum10.value },
 ])
 
-// 使用 watchEffect 自动更新卡片内容
 watchEffect(() => {
-    // 房间101 (temp1, hum1)
-    cards.value[0].content1 = `温度：${temp1.value}℃`
-    cards.value[0].content2 = `湿度：${hum1.value}%`
-
-    // 房间102 (temp2, hum2)
-    cards.value[1].content1 = `温度：${temp2.value}℃`
-    cards.value[1].content2 = `湿度：${hum2.value}%`
-
-    // 房间108 (temp3, hum3)
-    cards.value[2].content1 = `温度：${temp3.value}℃`
-    cards.value[2].content2 = `湿度：${hum3.value}%`
-
-    // 房间109 (temp4, hum4)
-    cards.value[3].content1 = `温度：${temp4.value}℃`
-    cards.value[3].content2 = `湿度：${hum4.value}%`
-
-    // 房间113 (temp5, hum5)
-    cards.value[4].content1 = `温度：${temp5.value}℃`
-    cards.value[4].content2 = `湿度：${hum5.value}%`
-
-    // 房间115 (temp6, hum6)
-    cards.value[5].content1 = `温度：${temp6.value}℃`
-    cards.value[5].content2 = `湿度：${hum6.value}%`
-
-    // 房间116 (temp7, hum7)
-    cards.value[6].content1 = `温度：${temp7.value}℃`
-    cards.value[6].content2 = `湿度：${hum7.value}%`
-
-    // 房间117 (temp8, hum8)
-    cards.value[7].content1 = `温度：${temp8.value}℃`
-    cards.value[7].content2 = `湿度：${hum8.value}%`
-
-    // 房间118 (temp9, hum9)
-    cards.value[8].content1 = `温度：${temp9.value}℃`
-    cards.value[8].content2 = `湿度：${hum9.value}%`
-
-    // 房间119 (temp10, hum10)
-    cards.value[9].content1 = `温度：${temp10.value}℃`
-    cards.value[9].content2 = `湿度：${hum10.value}%`
+  const values = [
+    [temp1.value, hum1.value], [temp2.value, hum2.value],
+    [temp3.value, hum3.value], [temp4.value, hum4.value],
+    [temp5.value, hum5.value], [temp6.value, hum6.value],
+    [temp7.value, hum7.value], [temp8.value, hum8.value],
+    [temp9.value, hum9.value], [temp10.value, hum10.value],
+  ]
+  values.forEach(([temperature, humidity], index) => {
+    cards.value[index].temperature = temperature
+    cards.value[index].humidity = humidity
+  })
 })
 
 let intervalId: number
-
 onMounted(() => {
-    // 初始加载数据
-    dataStore.getalldata()
-
-    // 设置定时器，每5秒更新一次
-    intervalId = setInterval(() => {
-        dataStore.getalldata()
-    }, 5000)
+  dataStore.getalldata()
+  intervalId = window.setInterval(() => dataStore.getalldata(), 5000)
 })
 
-onUnmounted(() => {
-    clearInterval(intervalId)
-})
-
-const cardsPerRow = 5
-
-const cardsInRow = computed(() => (row: any) => {
-    const start = (row - 1) * cardsPerRow
-    return cards.value.slice(start, start + cardsPerRow)
-})
+onUnmounted(() => window.clearInterval(intervalId))
 </script>
 
 <style scoped>
 .container {
-    overflow: hidden;
-    width: 100%;
-    height: 520px;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    padding: 60px 0;
-}
-
-.card-row {
-    height: 240px;
-    overflow: hidden;
-}
-
-.card-scroll {
-    display: flex;
-    animation: scroll 30s linear infinite;
-    width: calc(260px * 10);
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 16px;
+  padding: 4px;
+  box-sizing: border-box;
 }
 
 .card {
-    flex: 0 0 auto;
-    width: 250px;
-    margin: 0 15px;
-    font-size: 16px;
-    transition: box-shadow 0.3s ease;
+  width: 100%;
+  min-width: 0;
+  min-height: 148px;
+  border: 1px solid #4b5661;
+  border-radius: 14px;
+  background: #3a434c;
+  color: #edf3f8;
+  --el-card-bg-color: #3a434c;
+  --el-card-border-color: #4b5661;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  overflow: hidden;
+}
+
+.card :deep(.el-card__body) {
+  background: #3a434c;
+  color: #edf3f8;
+}
+
+.card :deep(.el-card__body) {
+  padding: 18px;
+}
+
+.card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 26px rgba(0, 0, 0, 0.28);
 }
 
 .card-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #edf3f8;
+  font-weight: 700;
+}
+
+.room-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #25b864;
+  box-shadow: 0 0 0 4px rgba(37, 184, 100, 0.14);
+}
+
+.card-header .el-tag {
+  margin-left: auto;
 }
 
 .card-content {
-    height: 100px;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
+  display: flex;
+  gap: 12px;
+  margin-top: 20px;
+  min-width: 0;
 }
 
-.card-content div {
-    margin: 5px 0;
+.metric {
+  flex: 1;
+  min-width: 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #46525e;
+  border: 1px solid #52606c;
 }
 
-@keyframes scroll {
-    0% {
-        transform: translateX(0);
-    }
-
-    100% {
-        transform: translateX(calc(-260px * 5));
-    }
+.metric-label {
+  display: block;
+  margin-bottom: 4px;
+  color: #b7c4cf;
+  font-size: 12px;
 }
 
-.card-row:nth-child(2) .card-scroll {
-    animation-direction: reverse;
+.metric strong {
+  color: #f1f6fa;
+  font-size: 22px;
+  font-weight: 700;
 }
 
-.card-row:first-child {
-    margin-bottom: 40px;
+.metric small {
+  margin-left: 2px;
+  color: #b8c4ce;
+  font-size: 12px;
+}
+
+@media (max-width: 600px) {
+  .container {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (min-width: 601px) and (max-width: 900px) {
+  .container {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 901px) and (max-width: 1500px) {
+  .container {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
 }
 </style>

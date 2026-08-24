@@ -6,20 +6,6 @@
 
       <!-- 内容区域 -->
       <div class="content-wrapper">
-        <!-- 标题区域 -->
-        <div class="header-section">
-          <div class="title-container">
-            <el-icon class="title-icon">
-              <DataBoard />
-            </el-icon>
-            <h1 class="main-title">智能仓储数据监控中心</h1>
-          </div>
-          <div class="subtitle-container">
-            <p class="subtitle">实时监控 · 智能分析 · 数据驱动决策</p>
-            <el-tag type="success" class="status-tag">运行正常</el-tag>
-          </div>
-        </div>
-
         <!-- 数据卡片区域 -->
         <div class="data-card-section">
           <DataCard />
@@ -63,7 +49,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onBeforeUnmount, computed } from 'vue';
+import { ref, onMounted, onBeforeUnmount } from 'vue';
 import DataCard from '@/components/DataCard.vue';
 import {
   DataBoard,
@@ -81,14 +67,16 @@ let particles = [];
 let mouse = { x: 0, y: 0 };
 
 // 更新时间
-const updateTime = computed(() => {
+const formatTime = () => {
   const now = new Date();
   return now.toLocaleTimeString('zh-CN', {
     hour: '2-digit',
     minute: '2-digit',
     second: '2-digit'
   });
-});
+};
+const updateTime = ref(formatTime());
+let clockTimer;
 
 function resizeCanvas() {
   const canvas = particleCanvas.value;
@@ -218,6 +206,9 @@ function initParticles() {
 onMounted(() => {
   initParticles();
   window.addEventListener('resize', resizeCanvas);
+  clockTimer = window.setInterval(() => {
+    updateTime.value = formatTime();
+  }, 1000);
 
   if (showParticles.value) {
     drawParticles();
@@ -229,6 +220,7 @@ onBeforeUnmount(() => {
     cancelAnimationFrame(animationFrameId);
   }
   window.removeEventListener('resize', resizeCanvas);
+  window.clearInterval(clockTimer);
   particles = [];
 });
 </script>
@@ -458,6 +450,112 @@ onBeforeUnmount(() => {
 
   .subtitle {
     font-size: 14px;
+  }
+}
+
+/* 统一为宽屏工作台布局，避免内容挤在左上角 */
+.area-wrapper {
+  position: relative;
+  width: 100%;
+  height: auto;
+  min-height: 100%;
+  overflow: visible;
+}
+
+.data-page {
+  min-height: 100%;
+  height: auto;
+  background: #252a2f;
+  color: #edf3f8;
+  overflow: visible;
+}
+
+.particle-canvas {
+  opacity: 0.08;
+}
+
+.content-wrapper {
+  width: min(1480px, 100%);
+  box-sizing: border-box;
+  margin: 0 auto;
+  padding: clamp(22px, 3vw, 36px) clamp(18px, 3vw, 40px) 64px;
+}
+
+.header-section {
+  width: 100%;
+  box-sizing: border-box;
+  margin-bottom: 18px;
+  padding: 22px 24px;
+  border: 1px solid rgba(207, 222, 237, 0.9);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 12px 30px rgba(38, 74, 111, 0.1);
+}
+
+.title-icon {
+  color: #2774b7;
+  background: #eaf3fb;
+}
+
+.main-title {
+  color: #173f67;
+  background: none;
+  -webkit-text-fill-color: initial;
+  font-size: clamp(24px, 3vw, 34px);
+}
+
+.subtitle {
+  color: #6b7c93;
+}
+
+.data-card-section {
+  min-height: 0;
+  overflow: visible;
+  padding: 20px;
+  border: 1px solid #414b55;
+  border-radius: 18px;
+  background: #30373e;
+  box-shadow: 0 14px 32px rgba(0, 0, 0, 0.2);
+}
+
+.footer-section {
+  margin: 18px 0 0;
+  padding: 14px 18px;
+  border: 1px solid rgba(207, 222, 237, 0.9);
+  border-radius: 14px;
+  background: #30373e;
+  border-color: #414b55;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.16);
+}
+
+.area-wrapper,
+.data-page {
+  height: 100%;
+  min-height: 0;
+}
+
+.content-wrapper {
+  height: 100%;
+  min-height: 0;
+  padding-bottom: 20px;
+}
+
+.stat-item {
+  color: #b4c0cb;
+}
+
+.stat-item .el-icon {
+  color: #2774b7;
+}
+
+@media (max-width: 768px) {
+  .content-wrapper {
+    padding: 16px 12px 24px;
+  }
+
+  .header-section,
+  .data-card-section {
+    padding: 16px;
   }
 }
 </style>

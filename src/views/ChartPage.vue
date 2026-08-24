@@ -1,11 +1,17 @@
 <template>
   <div class="chart-container">
-    <nav class="chart-nav">
-      <button class="nav-btn" @click="setCurrentChart(Chart1)">101、102房间</button>
-      <button class="nav-btn" @click="setCurrentChart(Chart2)">108、110房间</button>
-      <button class="nav-btn" @click="setCurrentChart(Chart3)">113、115房间</button>
-      <button class="nav-btn" @click="setCurrentChart(Chart4)">116、117房间</button>
-      <button class="nav-btn" @click="setCurrentChart(Chart5)">118、119房间</button>
+    <header class="page-header">
+      <div>
+        <p class="eyebrow">DATA ANALYTICS</p>
+        <h1>环境趋势分析</h1>
+        <span>选择房间组，查看温度与湿度的实时变化</span>
+      </div>
+      <el-tag type="success" effect="light">实时更新</el-tag>
+    </header>
+    <nav class="chart-nav" aria-label="房间组选择">
+      <button v-for="item in chartGroups" :key="item.label" class="nav-btn" :class="{ active: currentChart === item.component }" @click="setCurrentChart(item.component)">
+        {{ item.label }}
+      </button>
     </nav>
     <div class="chart-display">
       <!-- 使用动态组件 -->
@@ -25,7 +31,15 @@ import Chart5 from "@/components/Charts/Chart5.vue"
 
 
 
-const currentChart = ref(Chart1); // 默认加载 Chart101
+const chartGroups = [
+  { label: '101、102 房间', component: Chart1 },
+  { label: '108、110 房间', component: Chart2 },
+  { label: '113、115 房间', component: Chart3 },
+  { label: '116、117 房间', component: Chart4 },
+  { label: '118、119 房间', component: Chart5 },
+]
+
+const currentChart = ref(Chart1);
 
 function setCurrentChart(chartName) {
   currentChart.value = chartName;
@@ -36,10 +50,13 @@ function setCurrentChart(chartName) {
 <style scoped>
 .chart-container {
   width: 100%;
-  height: 100vh;
+  min-height: 100%;
+  box-sizing: border-box;
   display: flex;
   flex-direction: column;
-  background: linear-gradient(135deg, #0f2027 0%, #203a43 50%, #2c5364 100%);
+  gap: 18px;
+  padding: clamp(18px, 3vw, 40px);
+  background: linear-gradient(135deg, #edf4fa 0%, #f8fbff 58%, #e8f2fa 100%);
   position: relative;
   overflow: hidden;
 }
@@ -51,7 +68,7 @@ function setCurrentChart(chartName) {
   left: -50%;
   width: 200%;
   height: 200%;
-  background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 1px, transparent 1px);
+  background: radial-gradient(circle, rgba(45, 112, 170, 0.08) 1px, transparent 1px);
   background-size: 20px 20px;
   animation: moveStars 100s linear infinite;
 }
@@ -67,43 +84,140 @@ function setCurrentChart(chartName) {
 }
 
 .chart-nav {
-  padding: 20px;
   display: flex;
-  justify-content: center;
-  background: rgba(255, 255, 255, 0.05);
-  backdrop-filter: blur(10px);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 6px;
+  border: 1px solid #dce8f3;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 8px 24px rgba(38, 74, 111, 0.08);
 }
 
 .nav-btn {
-  margin: 0 10px;
-  padding: 10px 20px;
-  border: none;
-  border-radius: 20px;
-  background: rgba(0, 150, 255, 0.2);
-  color: #00ffff;
-  font-size: 16px;
+  flex: 1 1 150px;
+  padding: 11px 16px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: transparent;
+  color: #5d7188;
+  font-size: 14px;
+  font-weight: 600;
   cursor: pointer;
   transition: all 0.3s ease;
-  text-shadow: 0 0 5px #00ffff;
 }
 
 .nav-btn:hover {
-  background: rgba(0, 150, 255, 0.4);
-  transform: translateY(-2px);
-  box-shadow: 0 0 15px rgba(0, 255, 255, 0.5);
+  color: #23679f;
+  background: #eef6fd;
+}
+
+.nav-btn.active {
+  color: #ffffff;
+  background: #2774b7;
+  box-shadow: 0 6px 14px rgba(39, 116, 183, 0.24);
 }
 
 .chart-display {
   flex: 1;
-  margin: 20px;
-  background: rgba(0, 50, 100, 0.3);
-  border-radius: 10px;
-  box-shadow: 0 8px 32px rgba(0, 100, 255, 0.2);
-  backdrop-filter: blur(8px);
-  border: 1px solid rgba(0, 150, 255, 0.2);
+  min-height: 520px;
+  padding: 20px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 14px 36px rgba(38, 74, 111, 0.1);
+  border: 1px solid #dce8f3;
   display: flex;
   justify-content: center;
   align-items: center;
+}
+
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 20px;
+  color: #173f67;
+}
+
+.page-header h1 {
+  margin: 4px 0 8px;
+  font-size: clamp(26px, 3vw, 36px);
+}
+
+.page-header span {
+  color: #6b7c93;
+  font-size: 14px;
+}
+
+.eyebrow {
+  margin: 0;
+  color: #2774b7;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+}
+
+@media (max-width: 640px) {
+  .chart-container {
+    padding: 16px 12px 24px;
+  }
+
+  .page-header {
+    flex-direction: column;
+  }
+
+  .chart-display {
+    min-height: 420px;
+    padding: 10px;
+  }
+}
+
+/* 历史分析页与其他数据页统一，禁止页面滚动 */
+.chart-container {
+  height: 100%;
+  min-height: 0;
+  box-sizing: border-box;
+  padding: 18px clamp(14px, 2vw, 28px);
+  background: #252a2f;
+  overflow: hidden;
+}
+
+.chart-container::before {
+  opacity: 0.08;
+}
+
+.page-header {
+  color: #edf3f8;
+}
+
+.page-header span {
+  color: #aebbc6;
+}
+
+.eyebrow {
+  color: #65aef2;
+}
+
+.chart-nav {
+  border-color: #414b55;
+  background: #30373e;
+  box-shadow: none;
+}
+
+.nav-btn {
+  color: #b8c4ce;
+}
+
+.nav-btn:hover {
+  color: #edf3f8;
+  background: #46525e;
+}
+
+.chart-display {
+  min-height: 0;
+  overflow: hidden;
+  border-color: #414b55;
+  background: #30373e;
+  box-shadow: none;
 }
 </style>

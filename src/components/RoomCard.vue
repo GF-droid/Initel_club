@@ -7,10 +7,10 @@
             <h2 class="room-name">{{ room.name }}</h2>
             <div class="room-info">
               <div class="temperature">
-                <span>当前温度：{{ room.temperature }}°C</span>
+                <span>温度：{{ room.temperature }}°C</span>
               </div>
               <div class="humidity">
-                <span>当前湿度：{{ room.humidity }}%</span>
+                <span>湿度：{{ room.humidity }}%</span>
               </div>
             </div>
             <div v-if="showControlsForRoom(room.name)" class="room-controls">
@@ -289,5 +289,138 @@ const showControlsForRoom = (roomName: string) => {
 
 :deep(.el-scrollbar__wrap::-webkit-scrollbar-track) {
   background-color: transparent;
+}
+
+/* 统一数据管理页面的卡片视觉，降低动画干扰并提升信息层级 */
+.cards-wrapper {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+  padding: 4px;
+}
+
+.room-card {
+  width: auto;
+  height: 190px;
+  flex: none;
+  padding: 1px;
+  border: 1px solid rgba(190, 211, 232, 0.8);
+  border-radius: 16px;
+  background: linear-gradient(145deg, #ffffff, #f4f8fc);
+  box-shadow: 0 8px 20px rgba(38, 74, 111, 0.08);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.room-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 14px 28px rgba(38, 74, 111, 0.14);
+}
+
+.room-card::before,
+.room-card::after {
+  display: none;
+}
+
+.room-card .card-content {
+  padding: 18px;
+  border-radius: 15px;
+  background: #ffffff;
+  color: #243b53;
+}
+
+.room-name {
+  margin: 0;
+  color: #1f4f7a;
+  font-size: 20px;
+  text-align: left;
+}
+
+.room-info {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  width: 100%;
+  margin: 0;
+}
+
+.temperature,
+.humidity {
+  margin: 0;
+  padding: 10px;
+  border-radius: 10px;
+  background: #f3f7fb;
+  color: #536b84;
+  font-size: 13px;
+}
+
+.room-controls {
+  margin: 0;
+  gap: 8px;
+}
+
+.room-controls .el-button {
+  margin: 0;
+  border-radius: 8px;
+}
+
+@media (max-width: 600px) {
+  .cards-wrapper {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* 固定两行卡片，按钮不会被视口裁剪 */
+.room-container {
+  height: 100%;
+  overflow: hidden;
+}
+
+.cards-wrapper {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 12px;
+  height: 100%;
+  align-content: start;
+}
+
+.room-card {
+  box-sizing: border-box;
+  height: 178px;
+  min-width: 0;
+  background: #3a434c;
+  border-color: #4b5661;
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.2);
+}
+
+.room-card .card-content {
+  box-sizing: border-box;
+  padding: 14px;
+  background: #3a434c;
+  color: #edf3f8;
+}
+
+.room-name {
+  color: #edf3f8;
+  font-size: 18px;
+}
+
+.temperature,
+.humidity {
+  min-width: 0;
+  white-space: nowrap;
+  background: #46525e;
+  color: #c2ced8;
+}
+
+.room-controls .el-button {
+  min-height: 28px;
+  padding: 5px 8px;
+  white-space: nowrap;
+  font-size: 12px;
+}
+
+@media (max-width: 1100px) and (min-width: 601px) {
+  .cards-wrapper {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
 }
 </style>

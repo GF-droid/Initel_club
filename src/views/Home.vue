@@ -51,11 +51,13 @@ import { RouterView } from "vue-router";
 
 .right-container {
   flex: 1 0 60%;
+  min-width: 0;
   margin-top: 0px;
   display: flex;
   flex-direction: column;
   /* 垂直排列子元素 */
   height: 100vh;
+  min-height: 0;
   /* 占满父容器的高度 */
 }
 
@@ -72,7 +74,9 @@ import { RouterView } from "vue-router";
 }
 
 .content-container {
-  flex: 1 0 90%;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
   /* 可以增长，不缩小，占父容器高度的95% */
 }
 </style>

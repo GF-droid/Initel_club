@@ -40,7 +40,8 @@ onBeforeMount(() => {
 const chartOption = ref({
   title: {
     text: '房间温湿度变化',
-    left: 'center'
+    left: 'center',
+    textStyle: { color: '#edf3f8' }
   },
   tooltip: {
     trigger: 'axis',
@@ -63,7 +64,7 @@ const chartOption = ref({
     data: ['118温度', '118湿度', '119温度', '119湿度'],
     top: 30,
     textStyle: {
-      color: '#000000'
+      color: '#c4d0da'
     }
   },
   grid: {
@@ -82,7 +83,7 @@ const chartOption = ref({
       }
     },
     axisLabel: {
-      color: '#666'
+      color: '#b4c0cb'
     }
   },
   yAxis: [
@@ -98,11 +99,11 @@ const chartOption = ref({
       },
       axisLabel: {
         formatter: '{value} °C',
-        color: '#666'
+        color: '#b4c0cb'
       },
       splitLine: {
         lineStyle: {
-          color: '#eee'
+          color: '#4b5661'
         }
       }
     },
@@ -117,7 +118,8 @@ const chartOption = ref({
         }
       },
       axisLabel: {
-        formatter: '{value} %'
+        formatter: '{value} %',
+        color: '#7fb4ff'
       }
     }
   ],
