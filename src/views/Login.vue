@@ -22,7 +22,15 @@
         </div>
 
         <div class="inner-sign-up-container">
-            <login-form ref="loginFormRef" :class="{ 'sign-up-model': vari }"></login-form>
+            <login-form
+                ref="loginFormRef"
+                :class="{ 'sign-up-model': vari }"
+                @switch-to-register="vari = true"
+            ></login-form>
+            <register-form
+                :class="{ 'sign-up-model': vari }"
+                @switch-to-login="vari = false"
+            ></register-form>
         </div>
 
         <!-- 鼠标光点效果 -->
@@ -38,6 +46,7 @@
 <script lang='ts' setup name="Login">
 import { ref } from 'vue'
 import loginForm from '@/components/login/loginForm.vue'
+import registerForm from '@/components/login/registerForm.vue'
 import { UseAuth } from '@/utils/auth';
 
 let vari = ref(false)

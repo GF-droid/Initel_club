@@ -1,14 +1,13 @@
 // stores/loginAuthStore.ts
 import { defineStore } from 'pinia';
 import axios from "@/store/SetAxios";
-import { useRouter } from 'vue-router';
 import { ElNotification } from 'element-plus';
+import router from '@/router';
 
 export const useLoginAuthStore = defineStore('loginAuth', {
     state: () => ({
         isLoggedIn: false,
-        user: null as any,
-        router: useRouter()
+        user: null as any
     }),
 
     actions: {
@@ -21,34 +20,27 @@ export const useLoginAuthStore = defineStore('loginAuth', {
                     password
                 });
 
-                console.log('✅ 服务器连接成功！');
-                console.log('📊 响应状态:', response.status);
-                console.log('👤 用户数据:', response.data.data.user);
+                if (response.status !== 200 || !response.data?.success || !response.data?.data?.user) {
+                    throw new Error('服务器返回了无效的登录响应');
+                }
 
                 // 登录成功
-                if (response.status === 200) {
-                    this.isLoggedIn = true;
-                    this.user = response.data.data.user;
+                this.isLoggedIn = true;
+                this.user = response.data.data.user;
 
-                    // 存储用户信息
-                    localStorage.setItem('user', JSON.stringify(this.user));
-                    console.log('💾 用户信息已保存到本地存储');
+                // 存储用户信息和令牌，供刷新页面或后续接口鉴权使用。
+                localStorage.setItem('user', JSON.stringify(this.user));
+                localStorage.setItem('accessToken', response.data.data.accessToken);
 
-                    ElNotification.success({
-                        title: '登录成功',
-                        message: `欢迎您: ${username}`,
-                        duration: 2000
-                    });
+                ElNotification.success({
+                    title: '登录成功',
+                    message: `欢迎您: ${username}`,
+                    duration: 1500
+                });
 
-                    console.log('🔄 准备跳转到首页...');
-                    // 跳转到首页
-                    setTimeout(() => {
-                        console.log('📍 正在跳转到首页');
-                        this.router.push('/home');
-                    }, 1000);
+                await router.push('/home');
 
-                    return true;
-                }
+                return true;
 
             } catch (error: any) {
                 this.isLoggedIn = false;
@@ -57,8 +49,15 @@ export const useLoginAuthStore = defineStore('loginAuth', {
                 let errorMessage = '登录失败，请重试';
 
                 if (error.response) {
-                    console.log('❌ 服务器返回错误:', error.response.status, error.response.data.message);
-                    errorMessage = error.response.data.message || errorMessage;
+                    const serverMessage = error.response.data?.message;
+                    console.log('❌ 服务器返回错误:', error.response.status, serverMessage);
+                    if (Array.isArray(serverMessage)) {
+                        errorMessage = serverMessage.join('；');
+                    } else if (typeof serverMessage === 'string' && serverMessage) {
+                        errorMessage = serverMessage === 'Invalid username or password'
+                            ? '用户名或密码错误，请确认后重试'
+                            : serverMessage;
+                    }
                 } else if (error.request) {
                     console.log('🌐 网络连接失败: 无法连接到服务器');
                     errorMessage = '无法连接到服务器';
@@ -81,6 +80,7 @@ export const useLoginAuthStore = defineStore('loginAuth', {
             this.isLoggedIn = false;
             this.user = null;
             localStorage.removeItem('user');
+            localStorage.removeItem('accessToken');
             console.log('✅ 认证信息清除完成');
         },
 

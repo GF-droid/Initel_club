@@ -14,6 +14,10 @@
                 {{ loading ? '登录中...' : '登录' }}
             </el-button>
         </ElFormItem>
+        <div class="form-switch">
+            <span>还没有账号？</span>
+            <el-button link type="primary" @click="emit('switch-to-register')">立即注册</el-button>
+        </div>
     </el-form>
 </template>
 
@@ -31,6 +35,7 @@ const { loginParams, loginRules } = loginStore;
 const loginRef = ref();
 const authStore = UseAuth();
 const loading = ref(false);
+const emit = defineEmits<{ (event: 'switch-to-register'): void }>();
 
 // 修复：使用 computed 确保响应式
 const isallow = computed(() => authStore.isallow);
@@ -90,6 +95,7 @@ defineExpose({ resetForm });
 
 .login-form.sign-up-model {
     opacity: 0;
+    pointer-events: none;
     transition: all 0.8s;
     transition-delay: 0.2s;
     z-index: 0;
@@ -112,6 +118,19 @@ defineExpose({ resetForm });
 .login-btn {
     width: 100%;
     font-size: 18px;
+}
+
+.form-switch {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    color: rgba(255, 255, 255, 0.82);
+    font-size: 14px;
+}
+
+.form-switch .el-button {
+    font-size: 14px;
 }
 
 @keyframes titleAnimation {
