@@ -34,7 +34,7 @@
     </el-form>
 
     <!-- 选择物品的对话框 -->
-    <el-dialog v-model="showSelectionDialog" title="选择物品" width="50%">
+    <el-dialog v-model="showSelectionDialog" title="选择物品" width="50%" class="warehouse-dialog">
       <el-loading :fullscreen="false" :body="true" v-if="loading" />
       <div v-else class="room-item">
         <h3>{{ getRoomLabel(form.roomNumber) }}</h3>
@@ -343,6 +343,65 @@ h2 {
 }
 
 .el-loading {
-  background-color: rgba(255, 255, 255, 0.8);
+  background-color: rgba(37, 42, 47, 0.86);
+}
+
+:global(.warehouse-dialog) {
+  --el-dialog-bg-color: #30373e;
+  --el-bg-color: #30373e;
+  --el-border-color-lighter: #414b55;
+  border: 1px solid #4a5661;
+  border-radius: 8px;
+  background: #30373e;
+}
+
+:global(.warehouse-dialog .el-dialog__header) {
+  margin-right: 0;
+  padding: 18px 20px;
+  border-bottom: 1px solid #414b55;
+}
+
+:global(.warehouse-dialog .el-dialog__title) {
+  color: #edf3f8;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+:global(.warehouse-dialog .el-dialog__headerbtn .el-dialog__close) {
+  color: #aebbc6;
+}
+
+:global(.warehouse-dialog .el-dialog__body) {
+  padding: 20px;
+  color: #c6d0d9;
+}
+
+:global(.warehouse-dialog .el-dialog__footer) {
+  padding: 14px 20px;
+  border-top: 1px solid #414b55;
+  background: #292f35;
+}
+
+:global(.warehouse-dialog .room-item) {
+  color: #c6d0d9;
+}
+
+:global(.warehouse-dialog .room-item li) {
+  border-bottom-color: #414b55;
+}
+
+:global(.warehouse-dialog .el-radio__label) {
+  color: #c6d0d9;
+}
+
+:global(.warehouse-dialog .el-radio.is-checked .el-radio__label) {
+  color: #83c3ef;
+}
+
+:global(.warehouse-dialog .el-input-number__increase),
+:global(.warehouse-dialog .el-input-number__decrease) {
+  background: #3a444d;
+  color: #c6d0d9;
+  border-left-color: #4a5661;
 }
 </style>

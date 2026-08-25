@@ -7,6 +7,7 @@ import { InventoryModule } from './modules/inventory/inventory.module';
 import { TelemetryModule } from './modules/telemetry/telemetry.module';
 import { validateEnvironment } from './config/env.validation';
 import { DatabaseModule } from './database/database.module';
+import { OperationLogsModule } from './modules/operation-logs/operation-logs.module';
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { DatabaseModule } from './database/database.module';
     InventoryModule,
     AuthModule,
     AiModule,
+    OperationLogsModule,
   ],
 })
 export class AppModule {}

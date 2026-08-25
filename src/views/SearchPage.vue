@@ -1,496 +1,83 @@
 <template>
-  <div class="inventory-search">
-    <div class="title-area">
-      <h1>仓库物品搜索系统</h1>
-      <p>高效管理，精准查询</p>
-    </div>
+  <main class="search-page">
+    <header class="page-header"><div><p class="eyebrow">INVENTORY SEARCH</p><h1>智能搜索</h1><p>按物品、房间或关键词快速定位库存记录。</p></div></header>
 
-    <el-card class="search-area" :body-style="{ padding: '20px' }">
-      <el-form :inline="true" :model="searchForm" class="search-form">
-        <el-form-item label="名称">
-          <el-input v-model="searchForm.name" placeholder="输入物品名称" />
-        </el-form-item>
-        <el-form-item label="房间号">
-          <el-input v-model="searchForm.roomNumber" placeholder="输入房间号" />
-        </el-form-item>
-        <el-form-item label="关键词">
-          <el-input v-model="searchForm.keyword" placeholder="输入关键词" />
-        </el-form-item>
-        <el-form-item>
-          <el-button type="primary" @click="onSearch" :icon="Search">查询</el-button>
-          <el-button @click="resetSearch" :icon="Refresh">重置</el-button>
-          <el-button type="success" @click="exportToExcel" :icon="Download" :disabled="tableData.length === 0">
-            导出Excel
-          </el-button>
-        </el-form-item>
+    <section class="filter-panel">
+      <el-form :model="searchForm" label-position="top" class="filter-form" @submit.prevent="onSearch">
+        <el-form-item label="物品名称"><el-input v-model="searchForm.name" placeholder="输入物品名称" clearable /></el-form-item>
+        <el-form-item label="房间编号"><el-input v-model="searchForm.roomNumber" placeholder="如 101" clearable /></el-form-item>
+        <el-form-item label="关键词"><el-input v-model="searchForm.keyword" placeholder="名称或备注" clearable @keyup.enter="onSearch" /></el-form-item>
+        <div class="filter-actions"><el-button type="primary" :icon="Search" @click="onSearch">查询</el-button><el-button :icon="Refresh" @click="resetSearch">重置</el-button></div>
       </el-form>
-    </el-card>
+    </section>
 
-    <el-card class="table-area" :body-style="{ padding: '0px' }">
-      <div class="table-header">
-        <div class="header-left">
-          <h2>搜索结果</h2>
-          <el-tag :type="getTagType(tableData.length)">共 {{ tableData.length }} 条记录</el-tag>
-        </div>
-        <div class="header-right">
-          <el-button-group>
-            <el-button size="small" @click="exportCurrentPage" :icon="Document" :disabled="tableData.length === 0">
-              导出当前页
-            </el-button>
-            <el-button size="small" @click="exportAllData" :icon="Files" :disabled="allData.length === 0">
-              导出全部
-            </el-button>
-          </el-button-group>
-        </div>
-      </div>
-      <el-table v-loading="loading" :data="tableData" style="width: 100%"
-        :header-cell-style="{ background: '#f5f7fa', color: '#606266' }" border stripe height="calc(100vh - 320px)"
-        ref="tableRef">
-        <el-table-column prop="roomName" label="房间名" width="120" />
-        <el-table-column prop="name" label="物品名称" width="150" />
+    <section class="results-panel">
+      <div class="results-header"><div><h2>搜索结果</h2><span class="result-meta">共 {{ filteredData.length }} 条记录<span v-if="hasFilters"> · 已应用筛选</span></span></div><div class="result-actions"><el-button text :icon="Document" :disabled="!tableData.length" @click="exportCurrentPage">导出当前结果</el-button><el-button text :icon="Files" :disabled="!allData.length" @click="exportAllData">导出全部</el-button></div></div>
+      <el-table v-loading="loading" :data="pagedData" class="inventory-table" stripe height="calc(100% - 126px)" empty-text="暂无匹配的库存记录">
+        <el-table-column prop="roomName" label="房间" min-width="110" />
+        <el-table-column prop="name" label="物品名称" min-width="150" />
         <el-table-column prop="unit" label="单位" width="80" align="center" />
-        <el-table-column prop="quantity" label="数量" width="100" align="right" />
-        <el-table-column prop="unitPrice" label="单价" width="100" align="right">
-          <template #default="scope">
-            {{ formatPrice(scope.row.unitPrice) }}
-          </template>
-        </el-table-column>
-        <el-table-column prop="totalAmount" label="总金额" width="100" align="right">
-          <template #default="scope">
-            {{ formatPrice(calculateTotal(scope.row)) }}
-          </template>
-        </el-table-column>
-        <el-table-column prop="notes" label="备注" min-width="150" show-overflow-tooltip />
-        <el-table-column prop="updateTime" label="出库时间" width="180" align="center">
-          <template #default="scope">
-            {{ scope.row.updateTime || '暂未出库' }}
-          </template>
-        </el-table-column>
-        <el-table-column label="操作" width="120" fixed="right">
-          <template #default="scope">
-            <el-button type="primary" size="small" @click="viewDetails(scope.row)">查看详情</el-button>
-          </template>
-        </el-table-column>
+        <el-table-column prop="quantity" label="数量" width="90" align="right" />
+        <el-table-column prop="unitPrice" label="单价" width="110" align="right"><template #default="{ row }">{{ formatPrice(row.unitPrice) }}</template></el-table-column>
+        <el-table-column label="总金额" width="120" align="right"><template #default="{ row }">{{ formatPrice(calculateTotal(row)) }}</template></el-table-column>
+        <el-table-column prop="notes" label="备注" min-width="160" show-overflow-tooltip />
+        <el-table-column prop="updateTime" label="更新时间" width="170" align="center"><template #default="{ row }">{{ row.updateTime || '暂无' }}</template></el-table-column>
+        <el-table-column label="操作" width="90" fixed="right"><template #default="{ row }"><el-button text type="primary" size="small" @click="viewDetails(row)">详情</el-button></template></el-table-column>
       </el-table>
-    </el-card>
+      <div class="pagination-row"><el-pagination v-model:current-page="currentPage" v-model:page-size="pageSize" :page-sizes="[10, 20, 50]" :total="filteredData.length" layout="total, sizes, prev, pager, next" background /></div>
+    </section>
 
-    <!-- 导出设置对话框 -->
-    <el-dialog v-model="exportDialogVisible" title="导出设置" width="30%">
-      <el-form>
-        <el-form-item label="文件名">
-          <el-input v-model="exportFileName" placeholder="请输入文件名">
-            <template #append>.xlsx</template>
-          </el-input>
-        </el-form-item>
-        <el-form-item label="导出范围">
-          <el-radio-group v-model="exportRange">
-            <el-radio label="current">当前搜索结果</el-radio>
-            <el-radio label="all">全部数据</el-radio>
-          </el-radio-group>
-        </el-form-item>
-        <el-form-item label="包含字段">
-          <el-checkbox-group v-model="exportFields">
-            <el-checkbox label="roomName">房间名</el-checkbox>
-            <el-checkbox label="name">物品名称</el-checkbox>
-            <el-checkbox label="unit">单位</el-checkbox>
-            <el-checkbox label="quantity">数量</el-checkbox>
-            <el-checkbox label="unitPrice">单价</el-checkbox>
-            <el-checkbox label="totalAmount">总金额</el-checkbox>
-            <el-checkbox label="notes">备注</el-checkbox>
-            <el-checkbox label="updateTime">出库时间</el-checkbox>
-          </el-checkbox-group>
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <span class="dialog-footer">
-          <el-button @click="exportDialogVisible = false">取消</el-button>
-          <el-button type="primary" @click="confirmExport">确认导出</el-button>
-        </span>
-      </template>
+    <el-dialog v-model="exportDialogVisible" title="导出设置" width="420px" class="search-dialog">
+      <el-form label-position="top"><el-form-item label="文件名"><el-input v-model="exportFileName"><template #append>.xlsx</template></el-input></el-form-item><el-form-item label="导出范围"><el-radio-group v-model="exportRange"><el-radio label="current">当前结果</el-radio><el-radio label="all">全部数据</el-radio></el-radio-group></el-form-item><el-form-item label="包含字段"><el-checkbox-group v-model="exportFields"><el-checkbox v-for="field in exportFieldOptions" :key="field.value" :label="field.value">{{ field.label }}</el-checkbox></el-checkbox-group></el-form-item></el-form>
+      <template #footer><el-button @click="exportDialogVisible = false">取消</el-button><el-button type="primary" @click="confirmExport">确认导出</el-button></template>
     </el-dialog>
-
-    <el-dialog v-model="dialogVisible" title="物品详情" width="50%">
-      <el-descriptions :column="2" border>
-        <el-descriptions-item v-for="(value, key) in currentItem" :key="key" :label="getLabel(key)">
-          {{ formatDetailValue(key, value) }}
-        </el-descriptions-item>
-      </el-descriptions>
-    </el-dialog>
-  </div>
+    <el-dialog v-model="dialogVisible" title="物品详情" width="560px" class="search-dialog"><el-descriptions :column="2" border><el-descriptions-item v-for="(value, key) in currentItem" :key="key" :label="getLabel(key)">{{ formatDetailValue(key, value) }}</el-descriptions-item></el-descriptions></el-dialog>
+  </main>
 </template>
 
-<script setup>
-import { ref, reactive, onMounted, computed } from 'vue'
-import { Search, Refresh, Download, Document, Files } from '@element-plus/icons-vue'
+<script setup lang="ts">
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
+import { Search, Refresh, Document, Files } from '@element-plus/icons-vue'
 import axios from '@/store/SetAxios'
 import * as XLSX from 'xlsx'
 
-const searchForm = reactive({
-  name: '',
-  roomNumber: '',
-  keyword: ''
-})
+interface Item { [key: string]: any; name?: string; home?: string; roomName?: string; quantity?: number; unitPrice?: number; notes?: string; updateTime?: string }
+const searchForm = reactive({ name: '', roomNumber: '', keyword: '' })
+const allData = ref<Item[]>([]); const tableData = ref<Item[]>([]); const loading = ref(false)
+const currentPage = ref(1); const pageSize = ref(10)
+const exportDialogVisible = ref(false); const dialogVisible = ref(false); const currentItem = ref<Item>({})
+const exportFileName = ref('库存物品'); const exportRange = ref('current'); const exportFields = ref(['roomName', 'name', 'unit', 'quantity', 'unitPrice', 'totalAmount', 'notes', 'updateTime'])
+const exportFieldOptions = [{ value: 'roomName', label: '房间' }, { value: 'name', label: '物品名称' }, { value: 'unit', label: '单位' }, { value: 'quantity', label: '数量' }, { value: 'unitPrice', label: '单价' }, { value: 'totalAmount', label: '总金额' }, { value: 'notes', label: '备注' }, { value: 'updateTime', label: '更新时间' }]
+const hasFilters = computed(() => Boolean(searchForm.name || searchForm.roomNumber || searchForm.keyword))
+const filteredData = computed(() => tableData.value)
+const pagedData = computed(() => filteredData.value.slice((currentPage.value - 1) * pageSize.value, currentPage.value * pageSize.value))
+watch([() => searchForm.name, () => searchForm.roomNumber, () => searchForm.keyword], () => { currentPage.value = 1 })
 
-const tableData = ref([])
-const allData = ref([]) // 存储全部原始数据
-const loading = ref(false)
-const tableRef = ref(null)
-
-// 导出相关
-const exportDialogVisible = ref(false)
-const exportFileName = ref('物品信息导出')
-const exportRange = ref('current')
-const exportFields = ref(['roomName', 'name', 'unit', 'quantity', 'unitPrice', 'totalAmount', 'notes', 'updateTime'])
-
-// 获取所有物品数据
-const fetchItemsFromServer = async () => {
-  loading.value = true
-  try {
-    console.log('开始获取数据...')
-    const response = await axios.get('/inventory/items')
-    console.log('后端返回的数据:', response.data)
-
-    // 直接使用后端返回的字段名
-    allData.value = response.data
-    tableData.value = response.data
-
-    ElMessage.success(`成功加载 ${response.data.length} 条记录`)
-  } catch (error) {
-    console.error('加载失败:', error)
-    ElMessage.error('加载失败，请稍后重试')
-  } finally {
-    loading.value = false
-  }
-}
-
-const onSearch = async () => {
-  loading.value = true
-  try {
-    // 先从服务器获取最新的数据
-    await fetchItemsFromServer();
-
-    // 使用正确的字段名进行过滤
-    const nameKeyword = searchForm.name.toLowerCase();
-    const roomNumberKeyword = searchForm.roomNumber.toLowerCase();
-    const keyword = searchForm.keyword.toLowerCase();
-
-    console.log('搜索条件:', { nameKeyword, roomNumberKeyword, keyword })
-
-    const filteredData = allData.value.filter(item => {
-      const matchName = !nameKeyword || item.name?.toLowerCase().includes(nameKeyword);
-      const matchRoom = !roomNumberKeyword || item.home?.toLowerCase().includes(roomNumberKeyword);
-      const matchKeyword = !keyword ||
-        item.name?.toLowerCase().includes(keyword) ||
-        item.notes?.toLowerCase().includes(keyword);
-
-      return matchName && matchRoom && matchKeyword;
-    });
-
-    tableData.value = filteredData;
-
-    if (filteredData.length === 0) {
-      ElMessage.info('没有找到匹配的结果');
-    } else {
-      ElMessage.success(`查询成功，共找到 ${filteredData.length} 条记录`);
-    }
-  } catch (error) {
-    console.error('查询失败:', error);
-    ElMessage.error('查询失败，请稍后重试');
-  } finally {
-    loading.value = false;
-  }
-}
-
-const resetSearch = () => {
-  searchForm.name = ''
-  searchForm.roomNumber = ''
-  searchForm.keyword = ''
-  tableData.value = [...allData.value] // 恢复所有数据
-  ElMessage.success('已重置所有筛选条件')
-}
-
-// 计算总金额
-const calculateTotal = (row) => {
-  return (row.quantity || 0) * (row.unitPrice || 0)
-}
-
-// 格式化价格
-const formatPrice = (price) => {
-  if (price === undefined || price === null) return '¥0.00'
-  return `¥${Number(price).toFixed(2)}`
-}
-
-// 格式化详情中的值
-const formatDetailValue = (key, value) => {
-  if (key === 'unitPrice' || key === 'totalAmount') {
-    return formatPrice(value)
-  }
-  if (value === null || value === undefined) {
-    return '-'
-  }
-  return value
-}
-
-// 导出Excel主函数
-const exportToExcel = () => {
-  exportDialogVisible.value = true
-}
-
-// 导出当前页
-const exportCurrentPage = () => {
-  exportRange.value = 'current'
-  exportDialogVisible.value = true
-}
-
-// 导出全部
-const exportAllData = () => {
-  exportRange.value = 'all'
-  exportDialogVisible.value = true
-}
-
-// 确认导出
-const confirmExport = () => {
-  exportDialogVisible.value = false
-
-  // 确定导出的数据源
-  const sourceData = exportRange.value === 'current' ? tableData.value : allData.value
-
-  if (sourceData.length === 0) {
-    ElMessage.warning('没有数据可导出')
-    return
-  }
-
-  // 准备导出数据
-  const exportData = sourceData.map(item => {
-    const row = {}
-    exportFields.value.forEach(field => {
-      switch (field) {
-        case 'roomName':
-          row['房间名'] = item.roomName || '-'
-          break
-        case 'name':
-          row['物品名称'] = item.name || '-'
-          break
-        case 'unit':
-          row['单位'] = item.unit || '-'
-          break
-        case 'quantity':
-          row['数量'] = item.quantity || 0
-          break
-        case 'unitPrice':
-          row['单价'] = item.unitPrice ? `¥${item.unitPrice.toFixed(2)}` : '¥0.00'
-          break
-        case 'totalAmount':
-          row['总金额'] = formatPrice(calculateTotal(item))
-          break
-        case 'notes':
-          row['备注'] = item.notes || '-'
-          break
-        case 'updateTime':
-          row['出库时间'] = item.updateTime || '暂未出库'
-          break
-      }
-    })
-    return row
-  })
-
-  // 创建工作簿
-  const wb = XLSX.utils.book_new()
-
-  // 添加工作表标题
-  const titleRow = [{
-    '导出时间': `导出时间：${new Date().toLocaleString()}`,
-    '记录数量': `共 ${exportData.length} 条记录`,
-    '搜索条件': `名称:${searchForm.name || '全部'} 房间:${searchForm.roomNumber || '全部'} 关键词:${searchForm.keyword || '全部'}`
-  }]
-
-  // 创建标题工作表（如果需要单独标题页）
-  // 这里我们直接在数据上方添加标题信息
-
-  // 创建数据工作表
-  const ws = XLSX.utils.json_to_sheet(exportData, { skipHeader: false })
-
-  // 设置列宽
-  const colWidths = [
-    { wch: 12 }, // 房间名
-    { wch: 20 }, // 物品名称
-    { wch: 8 },  // 单位
-    { wch: 10 }, // 数量
-    { wch: 12 }, // 单价
-    { wch: 12 }, // 总金额
-    { wch: 30 }, // 备注
-    { wch: 20 }  // 出库时间
-  ]
-  ws['!cols'] = colWidths
-
-  // 将工作表添加到工作簿
-  XLSX.utils.book_append_sheet(wb, ws, '物品信息')
-
-  // 添加汇总信息表（可选）
-  const summaryData = [
-    ['汇总信息'],
-    ['导出时间', new Date().toLocaleString()],
-    ['数据总数', exportData.length],
-    ['导出范围', exportRange.value === 'current' ? '当前搜索结果' : '全部数据'],
-    ['搜索条件', `名称:${searchForm.name || '全部'}`],
-    ['', `房间号:${searchForm.roomNumber || '全部'}`],
-    ['', `关键词:${searchForm.keyword || '全部'}`]
-  ]
-  const wsSummary = XLSX.utils.aoa_to_sheet(summaryData)
-  XLSX.utils.book_append_sheet(wb, wsSummary, '导出信息')
-
-  // 生成文件名
-  const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-')
-  const filename = `${exportFileName.value || '物品信息导出'}_${timestamp}.xlsx`
-
-  // 导出文件
-  XLSX.writeFile(wb, filename)
-
-  ElMessage.success(`成功导出 ${exportData.length} 条记录`)
-}
-
-// 组件挂载时加载所有物品
-onMounted(() => {
-  fetchItemsFromServer()
-})
-
-const dialogVisible = ref(false)
-const currentItem = ref({})
-
-const viewDetails = (row) => {
-  currentItem.value = row
-  dialogVisible.value = true
-}
-
-const getLabel = (key) => {
-  const labels = {
-    roomName: '房间名',
-    name: '物品名称',
-    unit: '单位',
-    quantity: '数量',
-    unitPrice: '单价',
-    totalAmount: '总金额',
-    notes: '备注',
-    updateTime: '更新时间',
-    home: '房间号'
-  }
-  return labels[key] || key
-}
-
-const getTagType = computed(() => (count) => {
-  if (count === 0) return 'danger'
-  if (count < 5) return 'warning'
-  return 'success'
-})
+const fetchItems = async () => { loading.value = true; try { const response = await axios.get('/inventory/items'); allData.value = Array.isArray(response.data) ? response.data : []; tableData.value = [...allData.value] } catch { ElMessage.error('库存数据加载失败，请稍后重试') } finally { loading.value = false } }
+const onSearch = () => { const name = searchForm.name.toLowerCase(); const room = searchForm.roomNumber.toLowerCase(); const keyword = searchForm.keyword.toLowerCase(); tableData.value = allData.value.filter((item) => (!name || String(item.name || '').toLowerCase().includes(name)) && (!room || String(item.home || item.roomName || '').toLowerCase().includes(room)) && (!keyword || `${item.name || ''} ${item.notes || ''}`.toLowerCase().includes(keyword))); currentPage.value = 1 }
+const resetSearch = () => { Object.assign(searchForm, { name: '', roomNumber: '', keyword: '' }); tableData.value = [...allData.value]; currentPage.value = 1 }
+const calculateTotal = (row: Item) => Number(row.quantity || 0) * Number(row.unitPrice || 0)
+const formatPrice = (price: any) => `¥${Number(price || 0).toFixed(2)}`
+const viewDetails = (row: Item) => { currentItem.value = row; dialogVisible.value = true }
+const getLabel = (key: string | number) => ({ roomName: '房间', home: '房间编号', name: '物品名称', unit: '单位', quantity: '数量', unitPrice: '单价', totalAmount: '总金额', notes: '备注', updateTime: '更新时间' }[String(key)] || String(key))
+const formatDetailValue = (key: string | number, value: any) => String(key) === 'unitPrice' || String(key) === 'totalAmount' ? formatPrice(value) : value ?? '-'
+const exportCurrentPage = () => { exportRange.value = 'current'; exportDialogVisible.value = true }; const exportAllData = () => { exportRange.value = 'all'; exportDialogVisible.value = true }
+const confirmExport = () => { const source = exportRange.value === 'all' ? allData.value : tableData.value; const rows = source.map((item) => Object.fromEntries(exportFields.value.map((field) => [getLabel(String(field)), field === 'totalAmount' ? formatPrice(calculateTotal(item)) : field === 'unitPrice' ? formatPrice(item.unitPrice) : item[String(field)] ?? '-']))); const workbook = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(rows), '库存物品'); XLSX.writeFile(workbook, `${exportFileName.value || '库存物品'}.xlsx`); exportDialogVisible.value = false; ElMessage.success(`已导出 ${rows.length} 条记录`) }
+onMounted(fetchItems)
 </script>
 
 <style scoped>
-.inventory-search {
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  padding: 20px;
-  box-sizing: border-box;
-  background-color: #f0f2f5;
-}
-
-.title-area {
-  text-align: center;
-  padding: 20px;
-  margin-bottom: 20px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border-radius: 8px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-  color: white;
-}
-
-.title-area h1 {
-  margin: 0;
-  font-size: 28px;
-  font-weight: 600;
-}
-
-.title-area p {
-  margin: 10px 0 0;
-  font-size: 16px;
-  opacity: 0.8;
-}
-
-.search-area {
-  margin-bottom: 20px;
-}
-
-.search-form {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-
-.search-form .el-form-item {
-  margin-bottom: 0;
-  margin-right: 0;
-}
-
-.table-area {
-  flex-grow: 1;
-  display: flex;
-  flex-direction: column;
-}
-
-.table-area :deep(.el-card__body) {
-  height: 100%;
-  padding: 0;
-}
-
-.table-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 10px 20px;
-  background-color: #f5f7fa;
-  border-bottom: 1px solid #e4e7ed;
-}
-
-.header-left {
-  display: flex;
-  align-items: center;
-  gap: 15px;
-}
-
-.header-left h2 {
-  margin: 0;
-  font-size: 18px;
-  color: #303133;
-}
-
-.header-right {
-  display: flex;
-  gap: 10px;
-}
-
-.el-dialog :deep(.el-descriptions) {
-  margin-top: 20px;
-}
-
-.el-dialog :deep(.el-descriptions__label) {
-  width: 120px;
-}
-
-.dialog-footer {
-  display: flex;
-  justify-content: flex-end;
-  gap: 10px;
-}
-
-:deep(.el-checkbox-group) {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-
-:deep(.el-checkbox) {
-  width: calc(25% - 10px);
-  margin-right: 0;
-}
+.search-page { box-sizing: border-box; display: flex; flex-direction: column; width: 100%; height: 100%; min-height: 0; padding: 22px clamp(16px, 2.5vw, 36px); overflow: hidden; background: #252a2f; color: #edf3f8; }
+.page-header, .filter-panel, .results-panel { box-sizing: border-box; width: min(1420px, 100%); margin: 0 auto; }
+.page-header { margin-bottom: 18px; }.eyebrow { margin: 0 0 6px; color: #83c3ef; font-size: 12px; font-weight: 600; } h1 { margin: 0; font-size: 28px; font-weight: 600; }.page-header p:last-child { margin: 8px 0 0; color: #aebbc6; font-size: 14px; }
+.filter-panel, .results-panel { border: 1px solid #414b55; border-radius: 8px; background: #30373e; }.filter-panel { margin-bottom: 14px; padding: 16px 18px 4px; }.filter-form { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)) auto; align-items: end; gap: 16px; }.filter-form :deep(.el-form-item) { min-width: 0; margin-bottom: 12px; }.filter-form :deep(.el-form-item__label) { padding-bottom: 6px; color: #c6d0d9; font-size: 12px; }.filter-form :deep(.el-input) { width: 100%; min-width: 0; }.filter-form :deep(.el-input__wrapper) { background: #252a2f; box-shadow: 0 0 0 1px #4a5661 inset; }.filter-form :deep(.el-input__inner) { color: #edf3f8; }.filter-actions { display: flex; flex-wrap: nowrap; gap: 8px; margin-bottom: 12px; }.filter-actions .el-button { margin: 0; white-space: nowrap; }
+.results-panel { display: flex; flex: 1 1 auto; flex-direction: column; min-height: 0; overflow: hidden; }.results-header { flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between; padding: 14px 18px; border-bottom: 1px solid #414b55; }.results-header h2 { margin: 0 0 4px; font-size: 16px; }.result-meta { color: #8e9ca8; font-size: 12px; }.result-actions { display: flex; gap: 6px; }.result-actions :deep(.el-button) { color: #9fb4c5; }.result-actions :deep(.el-button:hover) { color: #83c3ef; background: #3a444d; }.inventory-table { flex: 1; min-height: 0; --el-table-bg-color: #30373e; --el-table-tr-bg-color: #30373e; --el-table-row-hover-bg-color: #3a444d; --el-table-header-bg-color: #292f35; --el-table-border-color: #414b55; --el-table-text-color: #c6d0d9; --el-table-header-text-color: #aebbc6; }.inventory-table :deep(.el-table__inner-wrapper::before) { background: #414b55; }.inventory-table :deep(.el-table__body tr), .inventory-table :deep(.el-table__body tr.el-table__row--striped), .inventory-table :deep(.el-table__body tr.el-table__row--striped > td.el-table__cell) { background: #30373e !important; }.inventory-table :deep(.el-table__body tr:hover > td.el-table__cell) { background: #3a444d !important; }.inventory-table :deep(td.el-table__cell), .inventory-table :deep(th.el-table__cell) { border-bottom-color: #414b55; }.pagination-row { flex: 0 0 auto; display: flex; justify-content: flex-end; padding: 12px 16px; border-top: 1px solid #414b55; }.pagination-row :deep(.el-pagination) { --el-pagination-bg-color: #252a2f; --el-pagination-text-color: #aebbc6; --el-pagination-button-color: #c6d0d9; --el-pagination-button-bg-color: #252a2f; --el-pagination-hover-color: #83c3ef; }.pagination-row :deep(.el-pagination .el-select__wrapper), .pagination-row :deep(.el-pagination .el-input__wrapper) { background: #252a2f; box-shadow: 0 0 0 1px #4a5661 inset; }.pagination-row :deep(.el-pagination button), .pagination-row :deep(.el-pagination .el-pager li) { color: #aebbc6; background: #252a2f; }.pagination-row :deep(.el-pagination .el-pager li.is-active) { color: #fff; background: #1f4058; }.search-dialog :deep(.el-dialog) { background: #30373e; border: 1px solid #4a5661; }.search-dialog :deep(.el-dialog__title), .search-dialog :deep(.el-form-item__label), .search-dialog :deep(.el-descriptions__label) { color: #edf3f8; }.search-dialog :deep(.el-dialog__body), .search-dialog :deep(.el-descriptions__content) { color: #c6d0d9; }.search-dialog :deep(.el-dialog__footer) { border-top: 1px solid #414b55; }.search-dialog :deep(.el-input__wrapper) { background: #252a2f; box-shadow: 0 0 0 1px #4a5661 inset; }.search-dialog :deep(.el-checkbox) { color: #c6d0d9; margin-right: 14px; }.search-dialog :global(.el-dialog__headerbtn .el-dialog__close) { color: #aebbc6; }
+:global(.search-dialog.el-dialog) { --el-dialog-bg-color: #30373e; background: #30373e !important; border: 1px solid #4a5661 !important; }.search-dialog :deep(.el-descriptions) { --el-descriptions-table-border: #4a5661; }.search-dialog :deep(.el-descriptions__cell) { background: #30373e !important; border-color: #4a5661 !important; }.search-dialog :deep(.el-descriptions__label) { background: #292f35 !important; }
+@media (max-width: 1050px) { .filter-form { grid-template-columns: repeat(2, minmax(0, 1fr)); }.filter-actions { grid-column: 1 / -1; } }
+@media (max-width: 800px) { .search-page { padding: 16px 12px; overflow: auto; }.filter-form { grid-template-columns: 1fr; gap: 4px; }.filter-form :deep(.el-form-item) { width: 100%; }.filter-actions { grid-column: auto; width: 100%; }.filter-actions .el-button { flex: 1; }.results-panel { height: 600px; }.result-actions { display: none; } }
+/* Keep the table loading state consistent with the dark workspace theme. */
+.inventory-table :deep(.el-loading-mask) { background: rgba(37, 42, 47, 0.88); }
+.inventory-table :deep(.el-loading-spinner .circular) { stroke: #83c3ef; }
+.inventory-table :deep(.el-loading-spinner .el-loading-text) { color: #aebbc6; }
 </style>

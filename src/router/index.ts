@@ -24,6 +24,10 @@ const routes: RouteRecordRaw[] = [{
         name:'Data',
         component:()=>import('@/views/DataPage.vue')},
         {
+        path:'air-conditioning',
+        name:'air-conditioning',
+        component:()=>import('@/views/DataPage.vue')},
+        {
         path:'data2',
         name:'data2',
         component:()=>import('@/views/DataPage2.vue')},

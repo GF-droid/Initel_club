@@ -1,5 +1,6 @@
 <template>
-  <div class="container">
+  <div>
+    <div class="container">
     <el-card v-for="card in cards" :key="card.name" class="card" shadow="never">
       <div class="card-header">
         <span class="room-dot"></span>
@@ -16,33 +17,61 @@
           <strong>{{ card.humidity }}<small>%</small></strong>
         </div>
       </div>
+      <div class="ac-controls">
+        <div class="ac-control-header"><span>空调控制</span><span class="ac-state" :class="{ running: airStore.airStates[card.roomId] }">{{ airStore.airStates[card.roomId] ? '运行中' : '已关闭' }}</span></div>
+        <el-radio-group v-model="controls[card.roomId].mode" size="small" class="mode-switch">
+          <el-radio-button label="target">固定温度</el-radio-button>
+          <el-radio-button label="range">温度范围</el-radio-button>
+        </el-radio-group>
+        <div class="temperature-settings">
+          <el-input-number v-if="controls[card.roomId].mode === 'target'" v-model="controls[card.roomId].target" :min="16" :max="30" :precision="1" controls-position="right" />
+          <template v-else>
+            <el-input-number v-model="controls[card.roomId].min" :min="16" :max="30" :precision="1" controls-position="right" />
+            <span>-</span>
+            <el-input-number v-model="controls[card.roomId].max" :min="16" :max="30" :precision="1" controls-position="right" />
+          </template>
+          <span class="unit">°C</span>
+        </div>
+        <div class="ac-actions">
+          <el-switch v-model="controls[card.roomId].smart" size="small" active-text="智能" @change="onSmartChange(card.roomId)" />
+          <el-button size="small" type="primary" :disabled="controls[card.roomId].smart" @click="airStore.setAirState(card.roomId, true)">开启</el-button>
+          <el-button size="small" :disabled="controls[card.roomId].smart" @click="airStore.setAirState(card.roomId, false)">关闭</el-button>
+        </div>
+      </div>
     </el-card>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, watchEffect, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, watchEffect, onMounted, onUnmounted } from 'vue'
 import { useDataStore } from '@/store/Data/DataStore'
 import { storeToRefs } from 'pinia'
+import { useAirConditioningStore } from '@/store/airConditioningStore'
 
 const dataStore = useDataStore()
+const airStore = useAirConditioningStore()
 const {
   temp1, hum1, temp2, hum2, temp3, hum3, temp4, hum4, temp5, hum5,
   temp6, hum6, temp7, hum7, temp8, hum8, temp9, hum9, temp10, hum10,
 } = storeToRefs(dataStore)
 
 const cards = ref([
-  { name: '101房间', temperature: temp1.value, humidity: hum1.value },
-  { name: '102房间', temperature: temp2.value, humidity: hum2.value },
-  { name: '108房间', temperature: temp3.value, humidity: hum3.value },
-  { name: '109房间', temperature: temp4.value, humidity: hum4.value },
-  { name: '113房间', temperature: temp5.value, humidity: hum5.value },
-  { name: '115房间', temperature: temp6.value, humidity: hum6.value },
-  { name: '116房间', temperature: temp7.value, humidity: hum7.value },
-  { name: '117房间', temperature: temp8.value, humidity: hum8.value },
-  { name: '118房间', temperature: temp9.value, humidity: hum9.value },
-  { name: '119房间', temperature: temp10.value, humidity: hum10.value },
+  { roomId: '101', name: '101房间', temperature: temp1.value, humidity: hum1.value },
+  { roomId: '102', name: '102房间', temperature: temp2.value, humidity: hum2.value },
+  { roomId: '108', name: '108房间', temperature: temp3.value, humidity: hum3.value },
+  { roomId: '109', name: '109房间', temperature: temp4.value, humidity: hum4.value },
+  { roomId: '113', name: '113房间', temperature: temp5.value, humidity: hum5.value },
+  { roomId: '115', name: '115房间', temperature: temp6.value, humidity: hum6.value },
+  { roomId: '116', name: '116房间', temperature: temp7.value, humidity: hum7.value },
+  { roomId: '117', name: '117房间', temperature: temp8.value, humidity: hum8.value },
+  { roomId: '118', name: '118房间', temperature: temp9.value, humidity: hum9.value },
+  { roomId: '119', name: '119房间', temperature: temp10.value, humidity: hum10.value },
 ])
+
+const controls = reactive<Record<string, ReturnType<typeof airStore.getRoomSettings>>>({})
+cards.value.forEach((card) => { controls[card.roomId] = airStore.getRoomSettings(card.roomId) })
+const onSmartChange = (roomId: string) => { void airStore.evaluateRoomTemperature(roomId, Number(cards.value.find((card) => card.roomId === roomId)?.temperature ?? 0)) }
 
 watchEffect(() => {
   const values = [
@@ -56,6 +85,10 @@ watchEffect(() => {
     cards.value[index].temperature = temperature
     cards.value[index].humidity = humidity
   })
+  const selectedIndex = airStore.rooms.findIndex((room) => room.id === airStore.selectedRoomId)
+  if (selectedIndex >= 0) {
+    void airStore.evaluateRoomTemperature(airStore.rooms[selectedIndex].id, Number(values[selectedIndex][0]))
+  }
 })
 
 let intervalId: number
@@ -159,6 +192,26 @@ onUnmounted(() => window.clearInterval(intervalId))
   color: #b8c4ce;
   font-size: 12px;
 }
+
+.ac-controls { margin-top: 14px; padding-top: 12px; border-top: 1px solid #52606c; }
+.ac-control-header, .ac-actions, .temperature-settings { display: flex; align-items: center; }
+.ac-control-header { justify-content: space-between; margin-bottom: 8px; color: #c6d0d9; font-size: 12px; font-weight: 600; }
+.ac-state { color: #8e9ca8; font-size: 11px; font-weight: 400; }
+.ac-state.running { color: #7bcf8a; }
+.mode-switch { width: 100%; margin-bottom: 8px; }
+.mode-switch :deep(.el-radio-button) { flex: 1; }
+.mode-switch :deep(.el-radio-button__inner) { width: 100%; padding: 5px 4px; border-color: #52606c; background: #252a2f; color: #aebbc6; font-size: 11px; }
+.mode-switch :deep(.el-radio-button__original-radio:checked + .el-radio-button__inner) { background: #1f4058; border-color: #409eff; color: #9fd4f5; box-shadow: none; }
+.temperature-settings { gap: 5px; margin-bottom: 9px; }
+.temperature-settings :deep(.el-input-number) { width: 0; flex: 1; }
+.temperature-settings :deep(.el-input__wrapper) { padding: 1px 7px; background: #252a2f; box-shadow: 0 0 0 1px #52606c inset; }
+.temperature-settings :deep(.el-input__inner) { color: #edf3f8; font-size: 12px; }
+.temperature-settings :deep(.el-input-number__increase), .temperature-settings :deep(.el-input-number__decrease) { display: none; }
+.temperature-settings > span { color: #8e9ca8; font-size: 11px; }
+.temperature-settings .unit { color: #aebbc6; }
+.ac-actions { gap: 6px; }
+.ac-actions .el-switch { margin-right: auto; }
+.ac-actions .el-button { min-width: 42px; margin: 0; padding: 5px 7px; }
 
 @media (max-width: 600px) {
   .container {
