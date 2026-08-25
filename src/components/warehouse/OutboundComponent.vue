@@ -7,6 +7,7 @@
           v-model="form.roomNumber"
           filterable
           placeholder="请选择房间编号"
+          popper-class="warehouse-select-popper"
           @focus="loadRooms"
           @change="fetchRoomItems"
         >
@@ -258,18 +259,66 @@ loadRooms()
 
 <style scoped>
 .outbound-component {
-  padding: 20px;
-  background: rgba(255, 255,255, 0.7);
-  border-radius: 10px;
+  max-width: 960px;
+  margin: 0 auto;
 }
 
 h2 {
-  color: #2c3e50;
+  margin: 0 0 24px;
+  padding-bottom: 18px;
+  color: #edf3f8;
+  font-size: 20px;
+  font-weight: 600;
+  border-bottom: 1px solid #414b55;
+}
+
+.outbound-component :deep(.el-form-item) {
   margin-bottom: 20px;
+}
+
+.outbound-component :deep(.el-form-item__label) {
+  color: #c6d0d9;
+}
+
+.outbound-component :deep(.el-input),
+.outbound-component :deep(.el-select) {
+  width: 100%;
+}
+
+.outbound-component :deep(.el-input__wrapper) {
+  background: #252a2f;
+  box-shadow: 0 0 0 1px #4a5661 inset;
+}
+
+.outbound-component :deep(.el-select__wrapper) {
+  background: #252a2f;
+  box-shadow: 0 0 0 1px #4a5661 inset;
+}
+
+.outbound-component :deep(.el-input__inner) {
+  color: #edf3f8;
+}
+
+.outbound-component :deep(.el-select__selected-item),
+.outbound-component :deep(.el-select__placeholder) {
+  color: #edf3f8;
+}
+
+.outbound-component :deep(.el-input__wrapper.is-focus) {
+  box-shadow: 0 0 0 1px #409eff inset;
+}
+
+.outbound-component :deep(.el-select__wrapper.is-focused) {
+  box-shadow: 0 0 0 1px #409eff inset;
+}
+
+.outbound-component :deep(.el-button + .el-button) {
+  margin-left: 10px;
 }
 
 .room-item {
   margin-bottom: 20px;
+  color: #303133;
 }
 
 .room-item h3 {
