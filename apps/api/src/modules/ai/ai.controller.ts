@@ -13,6 +13,11 @@ export class AiController {
     return this.aiService.getSuggestions();
   }
 
+  @Get('dashboard')
+  dashboard() {
+    return this.aiService.getDashboard();
+  }
+
   @Post('chat')
   chat(@Body() input: ChatDto) {
     return this.aiService.chat(input);

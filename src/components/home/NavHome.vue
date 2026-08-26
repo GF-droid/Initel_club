@@ -30,6 +30,10 @@
       </el-menu-item>
     </el-menu>
 
+    <button class="sidebar-logout" type="button" @click="handleLogout">
+      <el-icon><SwitchButton /></el-icon><span>退出登录</span>
+    </button>
+
     <div class="sidebar-footer">
       <el-avatar :size="34" class="user-avatar">AD</el-avatar>
       <div class="user-details"><span class="user-name">管理员</span><span class="user-role">系统管理员</span></div>
@@ -39,10 +43,28 @@
 </template>
 
 <script lang="ts" setup name="NavHome">
-import { useRoute } from 'vue-router'
-import { Box, CircleCheckFilled, DataAnalysis, Histogram, MagicStick, Search, Setting, TrendCharts, VideoCamera } from '@element-plus/icons-vue'
+import { useRoute, useRouter } from 'vue-router'
+import { Box, CircleCheckFilled, DataAnalysis, Histogram, MagicStick, Search, Setting, SwitchButton, TrendCharts, VideoCamera } from '@element-plus/icons-vue'
+import { useLoginAuthStore } from '@/store/login/loginAuthStore'
+import { ElMessageBox } from 'element-plus'
 
 const route = useRoute()
+const router = useRouter()
+const authStore = useLoginAuthStore()
+const handleLogout = async () => {
+  try {
+    await ElMessageBox.confirm('退出后需要重新登录才能进入仓储工作台。', '确认退出登录', {
+      confirmButtonText: '确认退出',
+      cancelButtonText: '取消',
+      type: 'warning',
+      customClass: 'logout-confirm-dialog',
+    })
+    await authStore.logout()
+    await router.push('/login')
+  } catch {
+    // The user cancelled the confirmation dialog.
+  }
+}
 </script>
 
 <style scoped>
@@ -64,6 +86,8 @@ const route = useRoute()
 .navigation-menu :deep(.el-menu-item.is-active) { background: #1f4058 !important; color: #9fd4f5 !important; font-weight: 600; }
 .navigation-menu :deep(.el-menu-item.is-active::before) { position: absolute; left: 0; width: 3px; height: 22px; border-radius: 0 2px 2px 0; background: #58a9dc; content: ''; }
 .navigation-menu :deep(.el-menu-item.is-active .el-icon), .navigation-menu :deep(.el-sub-menu.is-opened > .el-sub-menu__title .el-icon) { color: #83c3ef; }
+.navigation-menu :deep(.el-sub-menu .el-menu-item:nth-child(2) > span) { font-size: 0; }
+.navigation-menu :deep(.el-sub-menu .el-menu-item:nth-child(2) > span::after) { content: '操作日志'; font-size: 14px; }
 .navigation-menu :deep(.el-sub-menu.is-opened > .el-sub-menu__title) { color: var(--text-primary) !important; }
 .navigation-menu :deep(.el-sub-menu__icon-arrow) { color: #82919f; }
 .menu-badge { margin-left: auto; padding: 1px 5px; border: 1px solid #527493; border-radius: 3px; color: #83c3ef; font-size: 10px; line-height: 16px; }
@@ -75,12 +99,16 @@ const route = useRoute()
 .status-icon { color: #67c23a; font-size: 15px; }
 .navigation-menu::-webkit-scrollbar { width: 4px; }
 .navigation-menu::-webkit-scrollbar-thumb { border-radius: 4px; background: #4a5661; }
+.sidebar-logout { display: flex; align-items: center; gap: 10px; width: calc(100% - 20px); height: 42px; margin: 8px 10px 10px; padding: 0 10px; border: 1px solid #414b55; border-radius: 5px; background: #292f35; color: #aebbc6; font: inherit; font-size: 13px; cursor: pointer; }
+.sidebar-logout:hover { border-color: #a85d62; background: #433237; color: #f2b2b4; }.sidebar-logout .el-icon { color: #d98589; font-size: 17px; }
+:global(.logout-confirm-dialog) { border: 1px solid #4a5661; border-radius: 8px; background: #30373e; }.logout-confirm-dialog :global(.el-message-box__title), .logout-confirm-dialog :global(.el-message-box__content) { color: #edf3f8; }.logout-confirm-dialog :global(.el-message-box__content) { color: #c6d0d9; }.logout-confirm-dialog :global(.el-message-box__headerbtn .el-message-box__close) { color: #aebbc6; }.logout-confirm-dialog :global(.el-button--default) { border-color: #4a5661; background: #292f35; color: #c6d0d9; }
 @media (max-width: 820px) {
   .brand-area { min-height: 64px; justify-content: center; padding: 0; }
-  .brand-area > div:last-child, .menu-caption, .sidebar-footer .user-details, .status-icon, .navigation-menu :deep(.el-sub-menu__icon-arrow), .navigation-menu :deep(.el-menu-item span), .navigation-menu :deep(.el-sub-menu__title span) { display: none; }
+  .brand-area > div:last-child, .menu-caption, .sidebar-footer .user-details, .status-icon, .sidebar-logout span, .navigation-menu :deep(.el-sub-menu__icon-arrow), .navigation-menu :deep(.el-menu-item span), .navigation-menu :deep(.el-sub-menu__title span) { display: none; }
   .navigation-menu :deep(.el-sub-menu__title), .navigation-menu :deep(.el-menu-item) { display: flex; justify-content: center; margin: 4px 8px; padding: 0 !important; }
   .navigation-menu :deep(.el-sub-menu__title .el-icon), .navigation-menu :deep(.el-menu-item .el-icon) { margin: 0; }
   .navigation-menu :deep(.el-sub-menu .el-menu-item) { margin: 2px 8px; padding: 0 !important; }
   .sidebar-footer { justify-content: center; padding: 0; }
+  .sidebar-logout { justify-content: center; width: calc(100% - 16px); margin: 8px; padding: 0; }
 }
 </style>

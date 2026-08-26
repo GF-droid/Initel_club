@@ -34,7 +34,7 @@ const pageTitles: Record<string, string> = {
   '/home/ai-assistant': 'AI 助手'
 }
 
-const pageTitle = computed(() => pageTitles[route.path] ?? '智能仓储管理系统')
+const pageTitle = computed(() => route.path === '/home/Data' || route.path === '/home/air-conditioning' ? '操作日志' : (pageTitles[route.path] ?? '智能仓储管理系统'))
 
 const handleLogout = async () => {
   try {

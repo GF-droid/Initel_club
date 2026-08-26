@@ -1,82 +1,13 @@
-<template>
-    <el-form class="register-form" ref="registerRef" :model="registerParams" :rules="registerRules">
-        <h1>注册</h1>
-        <el-form-item prop="username">
-            <el-input placeholder="请输入用户名" :prefix-icon="User" v-model="registerParams.username"
-                size="large"></el-input>
-        </el-form-item>
-        <el-form-item prop="password">
-            <el-input placeholder="请输入密码" show-password :prefix-icon="Lock" v-model="registerParams.password"
-                size="large"></el-input>
-        </el-form-item>
-        <el-form-item prop="email">
-            <el-input placeholder="请输入邮箱" :prefix-icon="Message" v-model="registerParams.email" size="large"></el-input>
-        </el-form-item>
-        <el-form-item>
-            <el-button type="primary" @click="submit_register" size="large">注册</el-button>
-        </el-form-item>
-        <div class="form-switch">
-            <span>已有账号？</span>
-            <el-button link type="primary" @click="emit('switch-to-login')">返回登录</el-button>
-        </div>
-    </el-form>
-</template>
-
-<script lang="ts" setup>
-import { User, Lock, Message } from '@element-plus/icons-vue';
-import { useRegisterAuthStore } from "@/store/register/RegisterAuthStore";
-import { useRegisterStore } from "@/store/register/registerStore";
-const registerStore = useRegisterStore();
-const registerAuthStore = useRegisterAuthStore();
-const emit = defineEmits<{ (event: 'switch-to-login'): void }>();
-
-const { registerParams, registerRules, registerRef } = registerStore;
-
-const submit_register = async () => {
-    await registerAuthStore.submit_register(registerParams);
-}
+<template><el-form ref="registerRef" :model="registerParams" :rules="registerRules" class="auth-form register-form" @keyup.enter="submitRegister"><el-form-item prop="username" label="用户名"><el-input v-model="registerParams.username" :prefix-icon="User" placeholder="请输入用户名" size="large" /></el-form-item><el-form-item prop="password" label="密码"><el-input v-model="registerParams.password" :prefix-icon="Lock" placeholder="请输入密码" show-password size="large" /></el-form-item><el-form-item prop="email" label="邮箱"><el-input v-model="registerParams.email" :prefix-icon="Message" placeholder="请输入邮箱" size="large" /></el-form-item><el-button type="primary" class="submit-button" :loading="loading" @click="submitRegister">{{ loading ? '正在注册' : '注册' }}</el-button><div class="form-switch"><span>已有账号？</span><el-button link type="primary" @click="emit('switch-to-login')">返回登录</el-button></div></el-form></template>
+<script setup lang="ts">
+import { ref } from 'vue'
+import { Lock, Message, User } from '@element-plus/icons-vue'
+import { ElMessage } from 'element-plus'
+import { useRegisterAuthStore } from '@/store/register/RegisterAuthStore'
+import { useRegisterStore } from '@/store/register/registerStore'
+const registerStore = useRegisterStore(); const registerAuthStore = useRegisterAuthStore(); const { registerParams, registerRules } = registerStore; const registerRef = ref(); const loading = ref(false); const emit = defineEmits<{ (event: 'switch-to-login'): void }>()
+const submitRegister = async () => { if (!registerRef.value) return; try { const valid = await registerRef.value.validate(); if (!valid) return; loading.value = true; await registerAuthStore.submit_register(registerParams) } catch { ElMessage.warning('请正确填写注册信息') } finally { loading.value = false } }
 </script>
-
-
 <style scoped>
-.register-form {
-    padding: 1% 25%;
-    grid-column: 1;
-    grid-row: 1;
-    /* display: none; */
-    opacity: 0;
-    transition: all 0.8s;
-    pointer-events: none;
-    transition-delay: 0.2s;
-
-
-}
-
-.register-form.sign-up-model {
-    /* display: block; */
-    opacity: 1;
-    transition: all 0.8s;
-    pointer-events: all;
-    transition-delay: 0.2s;
-
-
-}
-
-.register-form :deep(.el-button--primary) {
-    width: 100%;
-}
-
-.form-switch {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 4px;
-    color: rgba(255, 255, 255, 0.82);
-    font-size: 14px;
-}
-
-.form-switch .el-button {
-    width: auto;
-    font-size: 14px;
-}
+.auth-form { position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity .18s ease; }.auth-form.visible { pointer-events: auto; opacity: 1; }.auth-form :deep(.el-form-item) { margin-bottom: 15px; }.auth-form :deep(.el-form-item__label) { padding-bottom: 6px; color: #c6d0d9; font-size: 13px; }.auth-form :deep(.el-input__wrapper) { min-height: 42px; background: #30373e; box-shadow: 0 0 0 1px #4a5661 inset; }.auth-form :deep(.el-input__wrapper.is-focus) { box-shadow: 0 0 0 1px #83c3ef inset; }.auth-form :deep(.el-input__inner) { color: #edf3f8; }.auth-form :deep(.el-input__prefix-inner), .auth-form :deep(.el-input__suffix-inner) { color: #8e9ca8; }.submit-button { width: 100%; height: 42px; margin-top: 4px; }.form-switch { display: flex; align-items: center; justify-content: center; gap: 3px; margin-top: 18px; color: #aebbc6; font-size: 13px; }.form-switch .el-button { padding: 0; font-size: 13px; }
 </style>

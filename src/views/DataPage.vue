@@ -23,4 +23,12 @@ onMounted(loadLogs)
 .operation-log-select .el-select-dropdown__item { height: 34px; color: #c6d0d9; }
 .operation-log-select .el-select-dropdown__item:hover, .operation-log-select .el-select-dropdown__item.hover { background: #3a444d; color: #edf3f8; }
 .operation-log-select .el-select-dropdown__item.is-selected { background: #1f4058; color: #9fd4f5; }
+.logs-table .el-loading-mask { background: rgba(37, 42, 47, .88) !important; }
+.logs-table .el-loading-spinner .circular { stroke: #83c3ef; }
+.logs-table .el-loading-spinner .el-loading-text { color: #aebbc6; }
+.logs-table .el-table__body tr,
+.logs-table .el-table__body tr.el-table__row--striped,
+.logs-table .el-table__body tr.el-table__row--striped > td.el-table__cell,
+.logs-table .el-table__body td.el-table__cell { background: #30373e !important; }
+.logs-table .el-table__body tr:hover > td.el-table__cell { background: #3a444d !important; }
 </style>
