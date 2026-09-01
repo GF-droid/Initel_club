@@ -27,6 +27,7 @@ if [[ ! -f "$ENV_FILE" ]] || [[ "${FORCE_ENV:-false}" == "true" ]]; then
   PORT="$(ask 'API port' '15010')"
   CORS_ORIGIN="$(ask 'Frontend origin' 'http://localhost')"
   DEEPSEEK_API_KEY="$(ask_secret 'DeepSeek API key (leave empty to disable AI)')"
+  SENSOR_WS_TOKEN="$(ask_secret 'Sensor WebSocket token (leave empty to disable authentication)')"
   JWT_SECRET="$(openssl rand -hex 32 2>/dev/null || node -e "console.log(require('crypto').randomBytes(32).toString('hex'))")"
   cat > "$ENV_FILE" <<EOF
 DB_HOST=$DB_HOST
@@ -43,6 +44,7 @@ JWT_EXPIRES_IN=8h
 DEEPSEEK_API_KEY=$DEEPSEEK_API_KEY
 DEEPSEEK_BASE_URL=https://api.deepseek.com
 DEEPSEEK_MODEL=deepseek-chat
+SENSOR_WS_TOKEN=$SENSOR_WS_TOKEN
 EOF
   chmod 600 "$ENV_FILE"
 else

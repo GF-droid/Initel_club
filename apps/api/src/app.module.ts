@@ -8,6 +8,7 @@ import { TelemetryModule } from './modules/telemetry/telemetry.module';
 import { validateEnvironment } from './config/env.validation';
 import { DatabaseModule } from './database/database.module';
 import { OperationLogsModule } from './modules/operation-logs/operation-logs.module';
+import { SensorModule } from './modules/sensor/sensor.module';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { OperationLogsModule } from './modules/operation-logs/operation-logs.mod
     AuthModule,
     AiModule,
     OperationLogsModule,
+    SensorModule,
   ],
 })
 export class AppModule {}

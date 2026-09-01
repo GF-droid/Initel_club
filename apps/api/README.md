@@ -1,6 +1,6 @@
 # Initel Club API
 
-NestJS modular backend for telemetry, inventory, authentication and AI features.
+NestJS modular backend for telemetry, inventory, authentication, AI and sensor ingestion features.
 
 ## Development
 
@@ -32,5 +32,23 @@ Authentication requires the `users` table defined in `database/migrations/001_cr
 - `telemetry`: room temperature and humidity data
 - `inventory`: inbound, outbound and stock queries
 - `auth`: registration, bcrypt verification and JWT issuance
-- `ai`: Moonshot-compatible chat and report endpoints
+- `ai`: DeepSeek-compatible chat and report endpoints
 - `health`: service and database health check
+
+## Sensor WebSocket
+
+The API accepts sensor readings at `ws://<host>:<PORT>/ws/sensors`. Send one JSON message per reading:
+
+```json
+{
+  "roomId": "101",
+  "temperature": 24.6,
+  "humidity": 52.3,
+  "timestamp": "2026-08-31T12:30:00+08:00",
+  "sensorId": "sensor-101"
+}
+```
+
+`roomId` must be one of the configured rooms (`101`, `102`, `108`, `109`, `113`, `115`, `116`, `117`, `118`, `119`). The service validates ranges, stores valid readings in that room's telemetry table, returns a `sensor_data_ack`, and broadcasts `sensor_data` to connected clients. Send `ping` to receive a `pong`. Connection status is available at `GET /api/v1/sensors/health`.
+
+Set `SENSOR_WS_TOKEN` in `.env` to protect the endpoint. A device can then connect with `?token=<token>` or an `Authorization: Bearer <token>` header. When the variable is empty, token authentication is disabled for local testing.

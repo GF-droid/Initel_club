@@ -46,7 +46,8 @@ export class AiService {
       max_tokens: 1200,
     });
     const response = completion.choices[0]?.message.content ?? '未获得模型回复。';
-    this.histories.set(sessionId, [...history, { role: 'user', content: input.message }, { role: 'assistant', content: response }].slice(-20));
+    const updatedHistory: HistoryMessage[] = [...history, { role: 'user', content: input.message }, { role: 'assistant', content: response }];
+    this.histories.set(sessionId, updatedHistory.slice(-20));
     return { success: true, response, timestamp: new Date().toISOString(), tokens: completion.usage?.total_tokens ?? 0 };
   }
 

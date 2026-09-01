@@ -4,6 +4,7 @@ import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
+import { SensorGateway } from './modules/sensor/sensor.gateway';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -31,6 +32,7 @@ async function bootstrap() {
 
   const port = Number(process.env.PORT ?? 15010);
   await app.listen(port);
+  app.get(SensorGateway).attach(app.getHttpServer());
   Logger.log(`API listening on http://localhost:${port}/api/v1`, 'Bootstrap');
 }
 
