@@ -64,26 +64,48 @@ export const useAirConditioningStore = defineStore('airConditioning', () => {
     if (pendingRoomActions.has(roomId)) return
     pendingRoomActions.add(roomId)
     isSubmitting.value = true
+    const previousState = Boolean(airStates.value[roomId])
     try {
       const settings = getRoomSettings(roomId)
       const target = roomId === selectedRoomId.value
         ? temperatureMode.value === 'range' ? Number(((minTemperature.value + maxTemperature.value) / 2).toFixed(1)) : targetTemperature.value
         : settings.mode === 'range' ? Number(((settings.min + settings.max) / 2).toFixed(1)) : settings.target
-      await axios.post(`/air-conditioners/${roomId}/commands`, {
+      const response = await axios.post<{ command?: { commandId?: string } }>(`/air-conditioners/${roomId}/commands`, {
         power: on,
         targetTemperature: target,
         mode: 'cool',
         source: silent ? 'smart' : 'manual',
         operator: 'admin'
       })
-      airStates.value = { ...airStates.value, [roomId]: on }
-      if (!silent) ElMessage.success(`${room.label} 控制指令已下发，等待设备回执`)
-    } catch {
-      if (!silent) ElMessage.error('空调控制请求失败，请检查设备连接')
+      const commandId = response.data?.command?.commandId
+      if (!commandId) throw new Error('服务器未返回命令编号')
+      const result = await waitForCommandResult(commandId)
+      if (result.success === true && result.status === 'success') {
+        airStates.value = { ...airStates.value, [roomId]: on }
+        if (!silent) ElMessage.success(`${room.label} 空调指令执行成功`)
+      } else {
+        airStates.value = { ...airStates.value, [roomId]: previousState }
+        if (!silent) ElMessage.error(`${room.label} 空调控制失败：${result.message || '设备未完成指令'}`)
+      }
+    } catch (error) {
+      if (!silent) {
+        const message = error instanceof Error ? error.message : '请检查设备连接'
+        ElMessage.error(`空调控制请求失败：${message}`)
+      }
     } finally {
       pendingRoomActions.delete(roomId)
       isSubmitting.value = false
     }
+  }
+
+  const waitForCommandResult = async (commandId: string): Promise<{ status: string; success: boolean | null; message?: string }> => {
+    const deadline = Date.now() + 15_000
+    while (Date.now() < deadline) {
+      const response = await axios.get<{ status: string; success: boolean | null; message?: string }>(`/air-conditioners/commands/${commandId}`)
+      if (response.data.status !== 'pending') return response.data
+      await new Promise((resolve) => window.setTimeout(resolve, 1000))
+    }
+    return { status: 'timeout', success: false, message: '等待设备响应超时' }
   }
 
   const setSmartEnabled = async (enabled: boolean) => {
@@ -144,6 +166,6 @@ export const useAirConditioningStore = defineStore('airConditioning', () => {
     setSmartEnabled,
     getRoomSettings,
     evaluateRoomTemperature,
-    evaluateTemperature
+    evaluateTemperature,
   }
 })

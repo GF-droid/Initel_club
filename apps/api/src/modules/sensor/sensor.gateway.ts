@@ -12,6 +12,7 @@ interface SensorPayload { type?: unknown; roomId?: unknown; room?: unknown; temp
 interface SensorReading { roomId: RoomId; temperature: number; humidity: number; time: string; sensorId?: string }
 export interface AirConditionerCommand { type: 'air_conditioner_command'; commandId: string; roomId: RoomId; power: boolean; targetTemperature: number; mode: 'cool' }
 interface PendingCommand { command: AirConditionerCommand; source: 'manual' | 'smart'; operator: string; requestedAt: string; timeout: NodeJS.Timeout }
+export interface CommandResult { commandId: string; roomId: RoomId; status: 'pending' | 'success' | 'failed' | 'timeout'; success: boolean | null; message: string; command: AirConditionerCommand; requestedAt: string; completedAt?: string }
 
 @Injectable()
 export class SensorGateway {
@@ -19,6 +20,7 @@ export class SensorGateway {
   private readonly clients = new Set<WebSocket>();
   private readonly roomClients = new Map<RoomId, WebSocket>();
   private readonly pendingCommands = new Map<string, PendingCommand>();
+  private readonly commandResults = new Map<string, CommandResult>();
   private readonly server = new WebSocketServer({ noServer: true, maxPayload: 64 * 1024 });
   private attached = false;
 
@@ -63,8 +65,15 @@ export class SensorGateway {
 
     const timeout = setTimeout(() => void this.failCommand(command.commandId, '设备未在 10 秒内返回执行结果'), 10_000);
     this.pendingCommands.set(command.commandId, { command, source, operator, requestedAt, timeout });
+    this.commandResults.set(command.commandId, { commandId: command.commandId, roomId, status: 'pending', success: null, message: '控制指令已下发，等待设备回执', command, requestedAt });
     this.send(client, command);
     return { success: true, status: 'pending', command, requestedAt, message: '控制指令已通过 WebSocket 下发，等待设备回执' };
+  }
+
+  getCommandStatus(commandId: string) {
+    const result = this.commandResults.get(commandId);
+    if (!result) return null;
+    return result;
   }
 
   private handleConnection(socket: WebSocket) {
@@ -91,7 +100,6 @@ export class SensorGateway {
     try {
       await this.database.query(`INSERT INTO \`${result.reading.roomId}\` (wendu, shidu, time) VALUES (?, ?, ?)`, [result.reading.temperature, result.reading.humidity, result.reading.time]);
       this.send(socket, { type: 'sensor_data_ack', success: true, data: result.reading, receivedAt: new Date().toISOString() });
-      this.broadcast({ type: 'sensor_data', data: result.reading });
     } catch (error) {
       this.logger.error(`Failed to persist sensor data for room ${result.reading.roomId}`, error);
       this.send(socket, { type: 'error', success: false, code: 'PERSIST_FAILED', message: 'Sensor data could not be stored' });
@@ -109,6 +117,7 @@ export class SensorGateway {
     const success = payload.success === true;
     const message = typeof payload.message === 'string' ? payload.message : success ? '设备已执行控制指令' : '设备执行控制指令失败';
     await this.recordCommandResult(pending.command, pending.source, pending.operator, success, message, { actualPower: payload.actualPower, actualTemperature: payload.actualTemperature });
+    this.commandResults.set(commandId, { ...this.commandResults.get(commandId)!, status: success ? 'success' : 'failed', success, message, completedAt: new Date().toISOString() });
     this.send(socket, { type: 'air_conditioner_command_ack_received', commandId, success });
     this.broadcast({ type: 'air_conditioner_command_result', commandId, roomId, success, message });
   }
@@ -127,6 +136,7 @@ export class SensorGateway {
     if (!pending) return;
     clearTimeout(pending.timeout); this.pendingCommands.delete(commandId);
     await this.recordCommandResult(pending.command, pending.source, pending.operator, false, message);
+    this.commandResults.set(commandId, { ...this.commandResults.get(commandId)!, status: message.includes('10 秒') ? 'timeout' : 'failed', success: false, message, completedAt: new Date().toISOString() });
     this.broadcast({ type: 'air_conditioner_command_result', commandId, roomId: pending.command.roomId, success: false, message });
   }
 
