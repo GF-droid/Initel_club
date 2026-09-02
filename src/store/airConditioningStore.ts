@@ -59,18 +59,26 @@ export const useAirConditioningStore = defineStore('airConditioning', () => {
 
   const setAirState = async (roomId: string, on: boolean, silent = false) => {
     const room = rooms.find((item) => item.id === roomId)
-    if (!room || Boolean(airStates.value[roomId]) === on) return
+    if (!room) return
 
     if (pendingRoomActions.has(roomId)) return
     pendingRoomActions.add(roomId)
     isSubmitting.value = true
     try {
-      await axios.post(on ? '/open' : '/close', { home: room.paramId })
+      const settings = getRoomSettings(roomId)
+      const target = roomId === selectedRoomId.value
+        ? temperatureMode.value === 'range' ? Number(((minTemperature.value + maxTemperature.value) / 2).toFixed(1)) : targetTemperature.value
+        : settings.mode === 'range' ? Number(((settings.min + settings.max) / 2).toFixed(1)) : settings.target
+      await axios.post(`/air-conditioners/${roomId}/commands`, {
+        power: on,
+        targetTemperature: target,
+        mode: 'cool',
+        source: silent ? 'smart' : 'manual',
+        operator: 'admin'
+      })
       airStates.value = { ...airStates.value, [roomId]: on }
-      await writeOperationLog({ action: on ? '开启空调' : '关闭空调', roomId, success: true, message: '设备请求成功', details: { deviceId: room.paramId } })
-      if (!silent) ElMessage.success(`${room.label} 空调已${on ? '开启' : '关闭'}`)
+      if (!silent) ElMessage.success(`${room.label} 控制指令已下发，等待设备回执`)
     } catch {
-      await writeOperationLog({ action: on ? '开启空调' : '关闭空调', roomId, success: false, message: '设备请求失败', details: { deviceId: room.paramId } })
       if (!silent) ElMessage.error('空调控制请求失败，请检查设备连接')
     } finally {
       pendingRoomActions.delete(roomId)

@@ -9,6 +9,7 @@ import { validateEnvironment } from './config/env.validation';
 import { DatabaseModule } from './database/database.module';
 import { OperationLogsModule } from './modules/operation-logs/operation-logs.module';
 import { SensorModule } from './modules/sensor/sensor.module';
+import { AirConditionerModule } from './modules/air-conditioner/air-conditioner.module';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { SensorModule } from './modules/sensor/sensor.module';
     AiModule,
     OperationLogsModule,
     SensorModule,
+    AirConditionerModule,
   ],
 })
 export class AppModule {}

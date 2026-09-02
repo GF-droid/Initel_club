@@ -52,3 +52,4 @@ desktop.ini
 
 # Original nested Git metadata, retained locally as a backup
 /src/.git.embedded-backup/
+Test_api/
