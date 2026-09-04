@@ -96,8 +96,13 @@ export const useAirConditioningStore = defineStore('airConditioning', () => {
       const result = await waitForCommandResult(commandId)
       if (result.success === true && result.status === 'success') {
         airStates.value = { ...airStates.value, [roomId]: on }
-        runtime.set(roomId, { stateChangedAt: Date.now(), coolingSince: on ? Date.now() : undefined, alertLogged: false })
-        if (!on) delete controlAlerts.value[roomId]
+        const changedAt = Date.now()
+        runtime.set(roomId, { stateChangedAt: changedAt, coolingSince: on ? changedAt : undefined, alertLogged: false })
+        if (!on) {
+          const nextAlerts = { ...controlAlerts.value }
+          delete nextAlerts[roomId]
+          controlAlerts.value = nextAlerts
+        }
         if (!silent) ElMessage.success(`${room.label} 空调指令执行成功`)
       } else {
         airStates.value = { ...airStates.value, [roomId]: previousState }
@@ -165,7 +170,11 @@ export const useAirConditioningStore = defineStore('airConditioning', () => {
       }
     } else if (!shouldCool) {
       runtime.set(roomId, { ...roomRuntime, coolingSince: undefined, alertLogged: false })
-      delete controlAlerts.value[roomId]
+      if (controlAlerts.value[roomId]) {
+        const nextAlerts = { ...controlAlerts.value }
+        delete nextAlerts[roomId]
+        controlAlerts.value = nextAlerts
+      }
     }
   }
 
