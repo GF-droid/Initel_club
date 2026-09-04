@@ -18,6 +18,12 @@ export interface AirConditioningRoom {
   paramId: number
 }
 
+export interface ControlAlert { roomId: string; message: string; since: string }
+
+const MINIMUM_ON_TIME = 5 * 60 * 1000
+const MINIMUM_OFF_TIME = 3 * 60 * 1000
+const INEFFECTIVE_COOLING_TIME = 10 * 60 * 1000
+
 const rooms: AirConditioningRoom[] = [
   { id: '101', label: '101 房间', paramId: 2 },
   { id: '102', label: '102 房间', paramId: 3 },
@@ -42,6 +48,8 @@ export const useAirConditioningStore = defineStore('airConditioning', () => {
   const pendingRoomActions = new Set<string>()
   const airStates = ref<Record<string, boolean>>({})
   const roomSettings = ref<Record<string, RoomControlSettings>>({})
+  const controlAlerts = ref<Record<string, ControlAlert>>({})
+  const runtime = new Map<string, { stateChangedAt?: number; coolingSince?: number; alertLogged?: boolean }>()
 
   const writeOperationLog = async (input: { action: string; roomId?: string; success: boolean; message?: string; details?: Record<string, unknown> }) => {
     try {
@@ -62,14 +70,20 @@ export const useAirConditioningStore = defineStore('airConditioning', () => {
     if (!room) return
 
     if (pendingRoomActions.has(roomId)) return
+    const currentState = Boolean(airStates.value[roomId])
+    if (currentState === on) return
+    const roomRuntime = runtime.get(roomId) ?? {}
+    const elapsed = roomRuntime.stateChangedAt ? Date.now() - roomRuntime.stateChangedAt : Number.POSITIVE_INFINITY
+    if (currentState && !on && elapsed < MINIMUM_ON_TIME) return
+    if (!currentState && on && elapsed < MINIMUM_OFF_TIME) return
     pendingRoomActions.add(roomId)
     isSubmitting.value = true
     const previousState = Boolean(airStates.value[roomId])
     try {
       const settings = getRoomSettings(roomId)
-      const target = roomId === selectedRoomId.value
-        ? temperatureMode.value === 'range' ? Number(((minTemperature.value + maxTemperature.value) / 2).toFixed(1)) : targetTemperature.value
-        : settings.mode === 'range' ? Number(((settings.min + settings.max) / 2).toFixed(1)) : settings.target
+      const target = settings.mode === 'range'
+        ? Number(((settings.min + settings.max) / 2).toFixed(1))
+        : Number(settings.target)
       const response = await axios.post<{ command?: { commandId?: string } }>(`/air-conditioners/${roomId}/commands`, {
         power: on,
         targetTemperature: target,
@@ -82,6 +96,8 @@ export const useAirConditioningStore = defineStore('airConditioning', () => {
       const result = await waitForCommandResult(commandId)
       if (result.success === true && result.status === 'success') {
         airStates.value = { ...airStates.value, [roomId]: on }
+        runtime.set(roomId, { stateChangedAt: Date.now(), coolingSince: on ? Date.now() : undefined, alertLogged: false })
+        if (!on) delete controlAlerts.value[roomId]
         if (!silent) ElMessage.success(`${room.label} 空调指令执行成功`)
       } else {
         airStates.value = { ...airStates.value, [roomId]: previousState }
@@ -108,6 +124,12 @@ export const useAirConditioningStore = defineStore('airConditioning', () => {
     return { status: 'timeout', success: false, message: '等待设备响应超时' }
   }
 
+  const writeControlAlert = async (roomId: string, message: string, since: number) => {
+    const alert: ControlAlert = { roomId, message, since: new Date(since).toISOString() }
+    controlAlerts.value = { ...controlAlerts.value, [roomId]: alert }
+    await writeOperationLog({ action: '空调降温效果不足', roomId, success: false, message, details: { since: alert.since } })
+  }
+
   const setSmartEnabled = async (enabled: boolean) => {
     if (enabled && temperatureMode.value === 'range' && minTemperature.value >= maxTemperature.value) {
       ElMessage.warning('温度下限必须小于上限')
@@ -132,6 +154,19 @@ export const useAirConditioningStore = defineStore('airConditioning', () => {
     const shouldStop = settings.mode === 'range' ? temperature <= settings.min : temperature <= settings.target - 0.5
     if (shouldCool) await setAirState(roomId, true, true)
     if (shouldStop) await setAirState(roomId, false, true)
+    const state = Boolean(airStates.value[roomId])
+    const roomRuntime = runtime.get(roomId) ?? {}
+    if (state && shouldCool) {
+      const coolingSince = roomRuntime.coolingSince ?? Date.now()
+      runtime.set(roomId, { ...roomRuntime, coolingSince })
+      if (!roomRuntime.alertLogged && Date.now() - coolingSince >= INEFFECTIVE_COOLING_TIME) {
+        runtime.set(roomId, { ...roomRuntime, coolingSince, alertLogged: true })
+        await writeControlAlert(roomId, '空调运行后温度仍未达到设定范围，请检查设备或环境', coolingSince)
+      }
+    } else if (!shouldCool) {
+      runtime.set(roomId, { ...roomRuntime, coolingSince: undefined, alertLogged: false })
+      delete controlAlerts.value[roomId]
+    }
   }
 
   const evaluateTemperature = async (roomId: string, temperature: number) => {
@@ -159,6 +194,7 @@ export const useAirConditioningStore = defineStore('airConditioning', () => {
     smartEnabled,
     isSubmitting,
     airStates,
+    controlAlerts,
     roomSettings,
     currentState,
     comfortSummary,

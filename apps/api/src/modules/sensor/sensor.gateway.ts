@@ -8,11 +8,13 @@ import { OperationLogsService } from '../operation-logs/operation-logs.service';
 import { ROOM_IDS, RoomId, isRoomId } from '../telemetry/telemetry.constants';
 import { AirConditionerCommandDto } from '../air-conditioner/dto/air-conditioner-command.dto';
 
-interface SensorPayload { type?: unknown; roomId?: unknown; room?: unknown; temperature?: unknown; wendu?: unknown; humidity?: unknown; shidu?: unknown; timestamp?: unknown; time?: unknown; sensorId?: unknown; commandId?: unknown; success?: unknown; actualPower?: unknown; actualTemperature?: unknown; message?: unknown }
+interface SensorPayload { type?: unknown; roomId?: unknown; room?: unknown; temperature?: unknown; wendu?: unknown; humidity?: unknown; shidu?: unknown; timestamp?: unknown; time?: unknown; sensorId?: unknown; messageId?: unknown; commandId?: unknown; success?: unknown; actualPower?: unknown; actualTemperature?: unknown; message?: unknown; alarm?: unknown }
 interface SensorReading { roomId: RoomId; temperature: number; humidity: number; time: string; sensorId?: string }
+export interface SmokeStatus { roomId: RoomId; alarm: boolean; sensorId?: string; message: string; timestamp: string; updatedAt: string }
 export interface AirConditionerCommand { type: 'air_conditioner_command'; commandId: string; roomId: RoomId; power: boolean; targetTemperature: number; mode: 'cool' }
 interface PendingCommand { command: AirConditionerCommand; source: 'manual' | 'smart'; operator: string; requestedAt: string; timeout: NodeJS.Timeout }
 export interface CommandResult { commandId: string; roomId: RoomId; status: 'pending' | 'success' | 'failed' | 'timeout'; success: boolean | null; message: string; command: AirConditionerCommand; requestedAt: string; completedAt?: string }
+interface RateState { windowStartedAt: number; count: number }
 
 @Injectable()
 export class SensorGateway {
@@ -21,6 +23,9 @@ export class SensorGateway {
   private readonly roomClients = new Map<RoomId, WebSocket>();
   private readonly pendingCommands = new Map<string, PendingCommand>();
   private readonly commandResults = new Map<string, CommandResult>();
+  private readonly messageIds = new Map<string, number>();
+  private readonly rateStates = new WeakMap<WebSocket, RateState>();
+  private readonly smokeStates = new Map<RoomId, SmokeStatus>();
   private readonly server = new WebSocketServer({ noServer: true, maxPayload: 64 * 1024 });
   private attached = false;
 
@@ -45,6 +50,14 @@ export class SensorGateway {
   }
 
   health() { return { success: true, endpoint: '/ws/sensors', clients: this.clients.size, onlineRooms: [...this.roomClients.keys()], pendingCommands: this.pendingCommands.size, rooms: ROOM_IDS }; }
+
+  getSmokeStatuses(roomIdInput?: string) {
+    if (roomIdInput !== undefined) {
+      if (!isRoomId(roomIdInput)) return null;
+      return this.smokeStates.get(roomIdInput) ?? { roomId: roomIdInput, alarm: false, message: '暂无烟雾报警', timestamp: '', updatedAt: '' };
+    }
+    return ROOM_IDS.map((roomId) => this.smokeStates.get(roomId) ?? { roomId, alarm: false, message: '正常', timestamp: '', updatedAt: '' });
+  }
 
   async dispatchAirConditionerCommand(roomIdInput: string, input: AirConditionerCommandDto) {
     if (!isRoomId(roomIdInput)) throw new ServiceUnavailableException(`Invalid room ID: ${roomIdInput}`);
@@ -78,28 +91,68 @@ export class SensorGateway {
 
   private handleConnection(socket: WebSocket) {
     this.clients.add(socket);
+    let alive = true;
+    const heartbeat = setInterval(() => {
+      if (!alive) { socket.terminate(); return; }
+      alive = false;
+      socket.ping();
+    }, 30_000);
+    socket.on('pong', () => { alive = true; });
     this.send(socket, { type: 'connected', endpoint: '/ws/sensors', message: 'Sensor data channel ready' });
     socket.on('message', (raw) => void this.handleMessage(socket, raw.toString()));
-    socket.on('close', () => void this.handleDisconnect(socket));
+    socket.on('close', () => { clearInterval(heartbeat); void this.handleDisconnect(socket); });
     socket.on('error', () => void this.handleDisconnect(socket));
   }
 
   private async handleMessage(socket: WebSocket, raw: string) {
+    if (!this.allowMessage(socket)) {
+      this.send(socket, { type: 'error', success: false, code: 'RATE_LIMITED', message: 'Too many messages; maximum 120 messages per minute' });
+      return;
+    }
     if (raw === 'ping') return this.send(socket, { type: 'pong', timestamp: new Date().toISOString() });
     let payload: SensorPayload;
     try { payload = JSON.parse(raw) as SensorPayload; } catch { return this.send(socket, { type: 'error', success: false, code: 'INVALID_JSON', message: 'Message must be valid JSON' }); }
     if (payload.type === 'air_conditioner_command_ack') return void this.handleCommandAcknowledgement(socket, payload);
-    if (payload.type && payload.type !== 'telemetry') return this.send(socket, { type: 'error', success: false, code: 'UNKNOWN_MESSAGE_TYPE', message: 'Supported types: telemetry, air_conditioner_command_ack' });
+    if (payload.type === 'smoke_alarm') return void this.handleSmokeAlarm(socket, payload);
+    if (payload.type && payload.type !== 'telemetry') return this.send(socket, { type: 'error', success: false, code: 'UNKNOWN_MESSAGE_TYPE', message: 'Supported types: telemetry, smoke_alarm, air_conditioner_command_ack' });
     await this.handleTelemetry(socket, payload);
+  }
+
+  private async handleSmokeAlarm(socket: WebSocket, payload: SensorPayload) {
+    const roomId = String(payload.roomId ?? payload.room ?? '');
+    const sensorId = payload.sensorId === undefined ? undefined : String(payload.sensorId).trim();
+    if (!isRoomId(roomId)) return this.send(socket, { type: 'error', success: false, code: 'INVALID_SMOKE_ALARM', message: `roomId must be one of: ${ROOM_IDS.join(', ')}` });
+    if (typeof payload.alarm !== 'boolean') return this.send(socket, { type: 'error', success: false, code: 'INVALID_SMOKE_ALARM', message: 'alarm must be a boolean' });
+    if (!sensorId || sensorId.length > 128) return this.send(socket, { type: 'error', success: false, code: 'INVALID_SMOKE_ALARM', message: 'sensorId must be 1-128 characters' });
+    const date = payload.timestamp ?? payload.time ? new Date(String(payload.timestamp ?? payload.time)) : new Date();
+    if (Number.isNaN(date.getTime())) return this.send(socket, { type: 'error', success: false, code: 'INVALID_SMOKE_ALARM', message: 'timestamp must be a valid date' });
+    const messageId = payload.messageId === undefined ? undefined : String(payload.messageId).trim();
+    if (messageId !== undefined && (!messageId || messageId.length > 128)) return this.send(socket, { type: 'error', success: false, code: 'INVALID_SMOKE_ALARM', message: 'messageId must be 1-128 characters' });
+    if (this.hasSeenMessage(messageId)) return this.send(socket, { type: 'smoke_alarm_ack', success: true, duplicate: true, code: 'DUPLICATE_MESSAGE', message: '消息已处理过，未重复记录', messageId, roomId, alarm: payload.alarm });
+    this.roomClients.set(roomId, socket);
+    const current = this.smokeStates.get(roomId);
+    const changed = !current || current.alarm !== payload.alarm;
+    const message = typeof payload.message === 'string' && payload.message.trim() ? payload.message.trim() : payload.alarm ? 'Smoke detected' : 'Smoke cleared';
+    const status: SmokeStatus = { roomId, alarm: payload.alarm, sensorId, message, timestamp: date.toISOString(), updatedAt: new Date().toISOString() };
+    this.smokeStates.set(roomId, status);
+    if (messageId) this.rememberMessage(messageId);
+    if (changed) {
+      await this.operationLogs.create({ operationType: 'smoke_alarm', roomId, action: payload.alarm ? '烟雾报警触发' : '烟雾报警恢复', success: true, message, operator: sensorId, details: { sensorId, alarm: payload.alarm, messageId, timestamp: status.timestamp } });
+    }
+    this.send(socket, { type: 'smoke_alarm_ack', success: true, changed, messageId, data: status, message: changed ? (payload.alarm ? '烟雾报警已记录' : '烟雾报警已恢复') : '状态未变化，未重复记录' });
   }
 
   private async handleTelemetry(socket: WebSocket, payload: SensorPayload) {
     const result = this.validateTelemetry(payload);
     if (!result.ok) return this.send(socket, { type: 'error', success: false, code: 'INVALID_SENSOR_DATA', message: result.message });
+    if (this.hasSeenMessage(result.messageId)) {
+      return this.send(socket, { type: 'sensor_data_ack', success: true, duplicate: true, code: 'DUPLICATE_MESSAGE', message: '消息已处理过，未重复写入数据库', messageId: result.messageId, data: result.reading, receivedAt: new Date().toISOString() });
+    }
     this.roomClients.set(result.reading.roomId, socket);
     try {
       await this.database.query(`INSERT INTO \`${result.reading.roomId}\` (wendu, shidu, time) VALUES (?, ?, ?)`, [result.reading.temperature, result.reading.humidity, result.reading.time]);
-      this.send(socket, { type: 'sensor_data_ack', success: true, data: result.reading, receivedAt: new Date().toISOString() });
+      this.rememberMessage(result.messageId);
+      this.send(socket, { type: 'sensor_data_ack', success: true, messageId: result.messageId, data: result.reading, receivedAt: new Date().toISOString() });
     } catch (error) {
       this.logger.error(`Failed to persist sensor data for room ${result.reading.roomId}`, error);
       this.send(socket, { type: 'error', success: false, code: 'PERSIST_FAILED', message: 'Sensor data could not be stored' });
@@ -144,7 +197,7 @@ export class SensorGateway {
     await this.operationLogs.create({ operationType: 'air_conditioning', roomId: command.roomId, action: command.power ? '开启并设置空调' : '关闭空调', success, message, operator, details: { commandId: command.commandId, source, power: command.power, targetTemperature: command.targetTemperature, mode: command.mode, ...actual } });
   }
 
-  private validateTelemetry(payload: SensorPayload): { ok: true; reading: SensorReading } | { ok: false; message: string } {
+  private validateTelemetry(payload: SensorPayload): { ok: true; reading: SensorReading; messageId?: string } | { ok: false; message: string } {
     const roomId = String(payload.roomId ?? payload.room ?? '');
     if (!isRoomId(roomId)) return { ok: false, message: `roomId must be one of: ${ROOM_IDS.join(', ')}` };
     const temperature = Number(payload.temperature ?? payload.wendu); const humidity = Number(payload.humidity ?? payload.shidu);
@@ -152,7 +205,34 @@ export class SensorGateway {
     if (!Number.isFinite(humidity) || humidity < 0 || humidity > 100) return { ok: false, message: 'humidity must be between 0 and 100' };
     const date = payload.timestamp ?? payload.time ? new Date(String(payload.timestamp ?? payload.time)) : new Date();
     if (Number.isNaN(date.getTime())) return { ok: false, message: 'timestamp must be a valid date' };
-    return { ok: true, reading: { roomId, temperature, humidity, time: this.mysqlDateTime(date), sensorId: payload.sensorId ? String(payload.sensorId) : undefined } };
+    const messageId = payload.messageId === undefined ? undefined : String(payload.messageId).trim();
+    if (messageId !== undefined && (!messageId || messageId.length > 128)) return { ok: false, message: 'messageId must be 1-128 characters' };
+    if (payload.sensorId !== undefined && String(payload.sensorId).length > 128) return { ok: false, message: 'sensorId must be at most 128 characters' };
+    return { ok: true, messageId, reading: { roomId, temperature, humidity, time: this.mysqlDateTime(date), sensorId: payload.sensorId ? String(payload.sensorId) : undefined } };
+  }
+
+  private hasSeenMessage(messageId?: string): boolean {
+    if (!messageId) return false;
+    const now = Date.now();
+    for (const [id, expiresAt] of this.messageIds) if (expiresAt <= now) this.messageIds.delete(id);
+    return this.messageIds.has(messageId);
+  }
+
+  private rememberMessage(messageId?: string) {
+    if (!messageId) return;
+    this.messageIds.set(messageId, Date.now() + 10 * 60_000);
+  }
+
+  private allowMessage(socket: WebSocket): boolean {
+    const now = Date.now();
+    const state = this.rateStates.get(socket);
+    if (!state || now - state.windowStartedAt >= 60_000) {
+      this.rateStates.set(socket, { windowStartedAt: now, count: 1 });
+      return true;
+    }
+    if (state.count >= 120) return false;
+    state.count += 1;
+    return true;
   }
 
   private broadcast(message: unknown) { for (const client of this.clients) this.send(client, message); }

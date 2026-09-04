@@ -26,9 +26,21 @@ export const useDataStore = defineStore('data', {
         time4: [] as string[], time5: [] as string[], time6: [] as string[],
         time7: [] as string[], time8: [] as string[], time9: [] as string[],
         time10: [] as string[],
+        smokeStates: {} as Record<string, { alarm: boolean; message: string; updatedAt?: string }>,
         dataUpdateTrigger: ref(0) as Ref<number>,
     }),
     actions: {
+        async getSmokeStatuses() {
+            try {
+                const response = await axios.get<{ success: boolean; data: Array<{ roomId: string; alarm: boolean; message: string; updatedAt?: string }> }>('/sensors/smoke');
+                if (response.data?.success && Array.isArray(response.data.data)) {
+                    this.smokeStates = Object.fromEntries(response.data.data.map((item) => [item.roomId, { alarm: item.alarm, message: item.message, updatedAt: item.updatedAt }]));
+                }
+            } catch (error) {
+                console.warn('获取烟雾报警状态失败', error);
+            }
+        },
+
         // 修复 getData1 方法中的错误
         async getData1(roomid: any) {
             try {

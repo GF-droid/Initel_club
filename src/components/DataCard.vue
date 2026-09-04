@@ -5,7 +5,8 @@
       <div class="card-header">
         <span class="room-dot"></span>
         <span>{{ card.name }}</span>
-        <el-tag size="small" type="success" effect="light">在线</el-tag>
+        <el-tag v-if="dataStore.smokeStates[card.roomId]?.alarm" size="small" type="danger" effect="dark">烟雾报警</el-tag>
+        <el-tag v-else size="small" type="success" effect="light">正常</el-tag>
       </div>
       <div class="card-content">
         <div class="metric temperature">
@@ -17,6 +18,8 @@
           <strong>{{ card.humidity }}<small>%</small></strong>
         </div>
       </div>
+      <div v-if="dataStore.smokeStates[card.roomId]?.alarm" class="smoke-alert"><span class="smoke-alert-dot"></span><span>{{ dataStore.smokeStates[card.roomId]?.message || '检测到烟雾，请立即处理' }}</span></div>
+      <div v-if="airStore.controlAlerts[card.roomId]" class="control-alert"><span class="control-alert-dot"></span><span>{{ airStore.controlAlerts[card.roomId].message }}</span></div>
       <div class="ac-controls">
         <div class="ac-control-header"><span>空调控制</span><span class="ac-state" :class="{ running: airStore.airStates[card.roomId] }">{{ airStore.airStates[card.roomId] ? '运行中' : '已关闭' }}</span></div>
         <el-radio-group v-model="controls[card.roomId].mode" size="small" class="mode-switch">
@@ -24,11 +27,17 @@
           <el-radio-button label="range">温度范围</el-radio-button>
         </el-radio-group>
         <div class="temperature-settings">
-          <el-input-number v-if="controls[card.roomId].mode === 'target'" v-model="controls[card.roomId].target" :min="16" :max="30" :precision="1" controls-position="right" />
+          <el-select v-if="controls[card.roomId].mode === 'target'" v-model="controls[card.roomId].target" class="temperature-select" filterable popper-class="warehouse-select-popper">
+            <el-option v-for="temperature in temperatureOptions" :key="temperature" :label="`${temperature} °C`" :value="temperature" />
+          </el-select>
           <template v-else>
-            <el-input-number v-model="controls[card.roomId].min" :min="16" :max="30" :precision="1" controls-position="right" />
+            <el-select v-model="controls[card.roomId].min" class="temperature-select" filterable popper-class="warehouse-select-popper">
+              <el-option v-for="temperature in temperatureOptions" :key="`min-${temperature}`" :label="`${temperature} °C`" :value="temperature" />
+            </el-select>
             <span>-</span>
-            <el-input-number v-model="controls[card.roomId].max" :min="16" :max="30" :precision="1" controls-position="right" />
+            <el-select v-model="controls[card.roomId].max" class="temperature-select" filterable popper-class="warehouse-select-popper">
+              <el-option v-for="temperature in temperatureOptions" :key="`max-${temperature}`" :label="`${temperature} °C`" :value="temperature" />
+            </el-select>
           </template>
           <span class="unit">°C</span>
         </div>
@@ -51,6 +60,7 @@ import { useAirConditioningStore } from '@/store/airConditioningStore'
 
 const dataStore = useDataStore()
 const airStore = useAirConditioningStore()
+const temperatureOptions = Array.from({ length: 29 }, (_, index) => 16 + index * 0.5)
 const {
   temp1, hum1, temp2, hum2, temp3, hum3, temp4, hum4, temp5, hum5,
   temp6, hum6, temp7, hum7, temp8, hum8, temp9, hum9, temp10, hum10,
@@ -85,16 +95,14 @@ watchEffect(() => {
     cards.value[index].temperature = temperature
     cards.value[index].humidity = humidity
   })
-  const selectedIndex = airStore.rooms.findIndex((room) => room.id === airStore.selectedRoomId)
-  if (selectedIndex >= 0) {
-    void airStore.evaluateRoomTemperature(airStore.rooms[selectedIndex].id, Number(values[selectedIndex][0]))
-  }
+  airStore.rooms.forEach((room, index) => { void airStore.evaluateRoomTemperature(room.id, Number(values[index]?.[0])) })
 })
 
 let intervalId: number
 onMounted(() => {
   dataStore.getalldata()
-  intervalId = window.setInterval(() => dataStore.getalldata(), 5000)
+  dataStore.getSmokeStatuses()
+  intervalId = window.setInterval(() => { dataStore.getalldata(); dataStore.getSmokeStatuses() }, 5000)
 })
 
 onUnmounted(() => window.clearInterval(intervalId))
@@ -137,6 +145,10 @@ onUnmounted(() => window.clearInterval(intervalId))
   transform: translateY(-3px);
   box-shadow: 0 12px 26px rgba(0, 0, 0, 0.28);
 }
+.smoke-alert { display: flex; align-items: center; gap: 7px; margin-top: 12px; padding: 7px 9px; border: 1px solid rgba(245, 108, 108, .55); border-radius: 7px; background: rgba(120, 35, 40, .38); color: #ffb2b2; font-size: 11px; }
+.smoke-alert-dot { width: 7px; height: 7px; flex: 0 0 auto; border-radius: 50%; background: #f56c6c; box-shadow: 0 0 0 3px rgba(245, 108, 108, .18); }
+.control-alert { display: flex; align-items: center; gap: 7px; margin-top: 8px; padding: 7px 9px; border: 1px solid rgba(230, 162, 60, .55); border-radius: 7px; background: rgba(119, 80, 26, .28); color: #f5d28c; font-size: 11px; }
+.control-alert-dot { width: 7px; height: 7px; flex: 0 0 auto; border-radius: 50%; background: #e6a23c; }
 
 .card-header {
   display: flex;
@@ -203,10 +215,9 @@ onUnmounted(() => window.clearInterval(intervalId))
 .mode-switch :deep(.el-radio-button__inner) { width: 100%; padding: 5px 4px; border-color: #52606c; background: #252a2f; color: #aebbc6; font-size: 11px; }
 .mode-switch :deep(.el-radio-button__original-radio:checked + .el-radio-button__inner) { background: #1f4058; border-color: #409eff; color: #9fd4f5; box-shadow: none; }
 .temperature-settings { gap: 5px; margin-bottom: 9px; }
-.temperature-settings :deep(.el-input-number) { width: 0; flex: 1; }
-.temperature-settings :deep(.el-input__wrapper) { padding: 1px 7px; background: #252a2f; box-shadow: 0 0 0 1px #52606c inset; }
-.temperature-settings :deep(.el-input__inner) { color: #edf3f8; font-size: 12px; }
-.temperature-settings :deep(.el-input-number__increase), .temperature-settings :deep(.el-input-number__decrease) { display: none; }
+.temperature-settings :deep(.temperature-select) { width: 0; flex: 1; }
+.temperature-settings :deep(.el-select__wrapper) { min-height: 30px; padding: 1px 7px; background: #252a2f; box-shadow: 0 0 0 1px #52606c inset; }
+.temperature-settings :deep(.el-select__selected-item), .temperature-settings :deep(.el-select__placeholder), .temperature-settings :deep(.el-select__input) { color: #edf3f8; font-size: 12px; }
 .temperature-settings > span { color: #8e9ca8; font-size: 11px; }
 .temperature-settings .unit { color: #aebbc6; }
 .ac-actions { gap: 6px; }
