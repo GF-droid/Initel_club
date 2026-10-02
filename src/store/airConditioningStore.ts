@@ -71,11 +71,16 @@ export const useAirConditioningStore = defineStore('airConditioning', () => {
 
     if (pendingRoomActions.has(roomId)) return
     const currentState = Boolean(airStates.value[roomId])
-    if (currentState === on) return
-    const roomRuntime = runtime.get(roomId) ?? {}
-    const elapsed = roomRuntime.stateChangedAt ? Date.now() - roomRuntime.stateChangedAt : Number.POSITIVE_INFINITY
-    if (currentState && !on && elapsed < MINIMUM_ON_TIME) return
-    if (!currentState && on && elapsed < MINIMUM_OFF_TIME) return
+    // 智能控制需要保持幂等，手动操作则允许重复发送相同的开关指令。
+    if (silent && currentState === on) return
+    // Minimum run and rest times protect only the automatic strategy.
+    // Manual commands are explicit operator actions and must remain available.
+    if (silent) {
+      const roomRuntime = runtime.get(roomId) ?? {}
+      const elapsed = roomRuntime.stateChangedAt ? Date.now() - roomRuntime.stateChangedAt : Number.POSITIVE_INFINITY
+      if (currentState && !on && elapsed < MINIMUM_ON_TIME) return
+      if (!currentState && on && elapsed < MINIMUM_OFF_TIME) return
+    }
     pendingRoomActions.add(roomId)
     isSubmitting.value = true
     const previousState = Boolean(airStates.value[roomId])

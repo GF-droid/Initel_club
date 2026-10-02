@@ -60,7 +60,8 @@ import { useAirConditioningStore } from '@/store/airConditioningStore'
 
 const dataStore = useDataStore()
 const airStore = useAirConditioningStore()
-const temperatureOptions = Array.from({ length: 29 }, (_, index) => 16 + index * 0.5)
+// 空调设备按整数温度档位执行，前端不提供设备无法识别的 0.5℃ 选项。
+const temperatureOptions = Array.from({ length: 15 }, (_, index) => 16 + index)
 const {
   temp1, hum1, temp2, hum2, temp3, hum3, temp4, hum4, temp5, hum5,
   temp6, hum6, temp7, hum7, temp8, hum8, temp9, hum9, temp10, hum10,

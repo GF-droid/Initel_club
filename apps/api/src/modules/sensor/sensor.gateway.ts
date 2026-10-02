@@ -1,4 +1,4 @@
-import { ConflictException, Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
+import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import { DatabaseService } from '../../database/database.service';
 import { OperationLogsService } from '../operation-logs/operation-logs.service';
@@ -41,11 +41,6 @@ export class SensorGateway {
     const source = input.source ?? 'manual';
     const operator = input.operator ?? 'admin';
     const command = this.createCommand(roomId, input);
-    if (!this.mqtt.isRoomOnline(roomId)) {
-      await this.recordCommandResult(command, source, operator, false, '设备离线，未下发控制指令');
-      throw new ServiceUnavailableException(`Room ${roomId} MQTT device is offline`);
-    }
-    if ([...this.pendingCommands.values()].some((pending) => pending.command.roomId === roomId)) throw new ConflictException(`Room ${roomId} already has a pending command`);
     const requestedAt = new Date().toISOString();
     const timeout = setTimeout(() => void this.failCommand(command.commandId, '设备未在 10 秒内返回执行结果'), 10_000);
     this.pendingCommands.set(command.commandId, { command, source, operator, requestedAt, timeout });
