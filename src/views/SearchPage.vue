@@ -80,4 +80,23 @@ onMounted(fetchItems)
 .inventory-table :deep(.el-loading-mask) { background: rgba(37, 42, 47, 0.88); }
 .inventory-table :deep(.el-loading-spinner .circular) { stroke: #83c3ef; }
 .inventory-table :deep(.el-loading-spinner .el-loading-text) { color: #aebbc6; }
+@media (max-width: 560px) {
+  .search-page { padding: 12px 8px; }
+  .page-header { margin-bottom: 12px; }
+  h1 { font-size: 24px; }
+  .page-header p:last-child { font-size: 12px; }
+  .filter-panel { padding: 12px 12px 2px; }
+  .results-header { align-items: stretch; flex-direction: column; gap: 10px; padding: 12px; }
+  .pagination-row { justify-content: center; padding: 10px 6px; overflow-x: auto; }
+  .pagination-row :deep(.el-pagination) { white-space: nowrap; }
+  .pagination-row :deep(.el-pagination .el-pagination__sizes) { display: none; }
+  .results-panel { height: 560px; }
+  :global(.search-dialog.el-dialog) {
+    width: calc(100vw - 24px) !important;
+    max-width: 560px;
+    margin-top: 8vh !important;
+  }
+  .search-dialog :deep(.el-dialog__body) { max-height: 62vh; overflow-y: auto; }
+  .search-dialog :deep(.el-descriptions) { font-size: 12px; }
+}
 </style>

@@ -27,21 +27,6 @@
               <span>数据刷新频率: 5秒</span>
             </div>
           </div>
-          <div class="control-buttons">
-            <el-button type="primary" size="small" @click="refreshData">
-              <el-icon>
-                <Refresh />
-              </el-icon>
-              刷新数据
-            </el-button>
-            <el-button type="info" size="small" @click="toggleParticles">
-              <el-icon>
-                <VideoPlay v-if="showParticles" />
-                <VideoPause v-else />
-              </el-icon>
-              {{ showParticles ? '暂停动画' : '恢复动画' }}
-            </el-button>
-          </div>
         </div>
       </div>
     </div>
@@ -51,21 +36,15 @@
 <script setup>
 import { ref, onMounted, onBeforeUnmount } from 'vue';
 import DataCard from '@/components/DataCard.vue';
-import { useDataStore } from '@/store/Data/DataStore';
 import {
-  DataBoard,
   Clock,
-  View,
-  Refresh,
-  VideoPlay,
-  VideoPause
+  View
 } from '@element-plus/icons-vue';
 
 const particleCanvas = ref(null);
-const showParticles = ref(true);
 let animationFrameId = null;
 let particles = [];
-let mouse = { x: 0, y: 0 };
+const mouse = { x: 0, y: 0 };
 
 // 更新时间
 const formatTime = () => {
@@ -77,7 +56,6 @@ const formatTime = () => {
   });
 };
 const updateTime = ref(formatTime());
-const dataStore = useDataStore();
 let clockTimer;
 
 function resizeCanvas() {
@@ -103,7 +81,7 @@ function createParticle() {
 }
 
 function drawParticles() {
-  if (!showParticles.value || !particleCanvas.value) return;
+  if (!particleCanvas.value) return;
 
   const canvas = particleCanvas.value;
   const ctx = canvas.getContext('2d');
@@ -173,26 +151,7 @@ function drawParticles() {
     }
   }
 
-  if (showParticles.value) {
-    animationFrameId = requestAnimationFrame(drawParticles);
-  }
-}
-
-function handleMouseMove(event) {
-  mouse.x = event.clientX;
-  mouse.y = event.clientY;
-}
-
-function toggleParticles() {
-  showParticles.value = !showParticles.value;
-  if (showParticles.value && !animationFrameId) {
-    drawParticles();
-  }
-}
-
-async function refreshData() {
-  await Promise.all([dataStore.getalldata(), dataStore.getSmokeStatuses()]);
-  updateTime.value = formatTime();
+  animationFrameId = requestAnimationFrame(drawParticles);
 }
 
 function initParticles() {
@@ -212,9 +171,7 @@ onMounted(() => {
     updateTime.value = formatTime();
   }, 1000);
 
-  if (showParticles.value) {
-    drawParticles();
-  }
+  drawParticles();
 });
 
 onBeforeUnmount(() => {
@@ -330,7 +287,7 @@ onBeforeUnmount(() => {
 
 /* 数据卡片区域 */
 .data-card-section {
-  flex: 1;
+  flex: 0 0 auto;
   margin-bottom: 20px;
 }
 
@@ -342,7 +299,7 @@ onBeforeUnmount(() => {
   padding: 18px 15px;
   background: rgba(0, 0, 0, 0.2);
   border-radius: 16px;
-  margin-top: auto;
+  margin-top: 18px;
   /* 关键：推到最底部 */
   margin-bottom: 48px;
   /* 与底部的距离 */
@@ -366,10 +323,7 @@ onBeforeUnmount(() => {
   color: #409EFF;
 }
 
-.control-buttons {
-  display: flex;
-  gap: 12px;
-}
+/* Bottom action controls were intentionally removed. */
 
 /* 动画效果 */
 @keyframes fadeIn {
@@ -433,10 +387,6 @@ onBeforeUnmount(() => {
     gap: 10px;
   }
 
-  .control-buttons {
-    width: 100%;
-    justify-content: flex-end;
-  }
 }
 
 @media (max-width: 480px) {
@@ -532,13 +482,13 @@ onBeforeUnmount(() => {
 
 .area-wrapper,
 .data-page {
-  height: 100%;
-  min-height: 0;
+  height: auto;
+  min-height: 100%;
 }
 
 .content-wrapper {
-  height: 100%;
-  min-height: 0;
+  height: auto;
+  min-height: 100%;
   padding-bottom: 20px;
 }
 
@@ -551,13 +501,57 @@ onBeforeUnmount(() => {
 }
 
 @media (max-width: 768px) {
+  .area-wrapper,
+  .data-page {
+    height: auto;
+    min-height: 100%;
+  }
+
   .content-wrapper {
+    height: auto;
+    min-height: 0;
     padding: 16px 12px 24px;
   }
 
   .header-section,
   .data-card-section {
     padding: 16px;
+  }
+
+  .footer-section {
+    align-items: stretch;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+
+  .stats-info {
+    flex-wrap: wrap;
+    gap: 8px 18px;
+  }
+
+}
+
+@media (max-width: 560px) {
+  .particle-canvas {
+    display: none;
+  }
+
+  .content-wrapper {
+    height: auto;
+    padding: 10px 8px 18px;
+  }
+
+  .data-card-section {
+    padding: 10px;
+  }
+
+  .stats-info {
+    flex-direction: column;
+    gap: 7px;
+  }
+
+  .stat-item {
+    font-size: 12px;
   }
 }
 </style>

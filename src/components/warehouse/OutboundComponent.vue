@@ -404,4 +404,22 @@ h2 {
   color: #c6d0d9;
   border-left-color: #4a5661;
 }
+
+@media (max-width: 560px) {
+  :global(.warehouse-dialog.el-dialog) {
+    width: calc(100vw - 24px) !important;
+    max-width: 560px;
+    margin-top: 8vh !important;
+  }
+
+  :global(.warehouse-dialog .el-dialog__body) {
+    max-height: 62vh;
+    overflow-y: auto;
+    padding: 14px;
+  }
+
+  :global(.warehouse-dialog .el-dialog__footer) {
+    padding: 12px 14px;
+  }
+}
 </style>

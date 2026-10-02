@@ -34,6 +34,7 @@ import { RouterView } from "vue-router";
   background-color: white;
   overflow: hidden;
   display: flex;
+  min-width: 0;
 }
 
 /* 导航区 */
@@ -53,6 +54,7 @@ import { RouterView } from "vue-router";
   /* 垂直排列子元素 */
   height: 100vh;
   min-height: 0;
+  overflow: hidden;
   /* 占满父容器的高度 */
 }
 
@@ -70,7 +72,8 @@ import { RouterView } from "vue-router";
 .content-container {
   flex: 1 1 auto;
   min-height: 0;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
   /* 可以增长，不缩小，占父容器高度的95% */
 }
 
@@ -78,6 +81,28 @@ import { RouterView } from "vue-router";
   .nav-container {
     flex-basis: 64px;
     min-width: 64px;
+  }
+
+  .right-container {
+    flex: 1 1 auto;
+    width: calc(100vw - 64px);
+  }
+
+  .content-container {
+    width: 100%;
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+}
+
+@media (max-width: 480px) {
+  .nav-container {
+    flex-basis: 54px;
+    min-width: 54px;
+  }
+
+  .right-container {
+    width: calc(100vw - 54px);
   }
 }
 </style>

@@ -119,8 +119,8 @@ onUnmounted(() => window.clearInterval(intervalId))
 .container {
   width: 100%;
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
+  gap: clamp(10px, 1.2vw, 16px);
   padding: 4px;
   box-sizing: border-box;
 }
@@ -231,21 +231,39 @@ onUnmounted(() => window.clearInterval(intervalId))
 .ac-actions .el-switch { margin-right: auto; }
 .ac-actions .el-button { min-width: 42px; margin: 0; padding: 5px 7px; }
 
-@media (max-width: 600px) {
+@media (max-width: 560px) {
   .container {
-    grid-template-columns: 1fr;
+    padding: 2px;
   }
-}
 
-@media (min-width: 601px) and (max-width: 900px) {
-  .container {
-    grid-template-columns: repeat(5, minmax(0, 1fr));
+  .card :deep(.el-card__body) {
+    padding: clamp(12px, 4vw, 14px);
   }
-}
 
-@media (min-width: 901px) and (max-width: 1500px) {
-  .container {
-    grid-template-columns: repeat(5, minmax(0, 1fr));
+  .card-content {
+    gap: 8px;
+    margin-top: 14px;
+  }
+
+  .metric {
+    padding: 9px 10px;
+  }
+
+  .metric strong {
+    font-size: 20px;
+  }
+
+  .ac-actions {
+    flex-wrap: wrap;
+  }
+
+  .ac-actions .el-switch {
+    width: 100%;
+    margin: 0 0 2px;
+  }
+
+  .ac-actions .el-button {
+    flex: 1;
   }
 }
 </style>

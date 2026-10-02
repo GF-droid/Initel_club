@@ -52,4 +52,12 @@ h1 { margin: 0; color: #edf3f8; font-size: 28px; font-weight: 600; line-height: 
 .tab-label { display: inline-flex; align-items: center; gap: 8px; }
 .tab-label .el-icon { font-size: 17px; }
 @media (max-width: 768px) { .warehouse-management { padding: 16px 12px 24px; } .workspace { min-height: 0; padding: 0 14px 16px; } }
+@media (max-width: 560px) {
+  .warehouse-management { padding: 12px 8px 18px; }
+  h1 { font-size: 24px; }
+  .page-description { font-size: 12px; }
+  .workspace { padding: 0 10px 12px; }
+  .warehouse-tabs :deep(.el-tabs__item) { height: 48px; font-size: 13px; }
+  .tab-label { gap: 5px; }
+}
 </style>
