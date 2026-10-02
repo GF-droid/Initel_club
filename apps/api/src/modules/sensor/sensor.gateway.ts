@@ -7,12 +7,13 @@ import { DatabaseService } from '../../database/database.service';
 import { OperationLogsService } from '../operation-logs/operation-logs.service';
 import { ROOM_IDS, RoomId, isRoomId } from '../telemetry/telemetry.constants';
 import { AirConditionerCommandDto } from '../air-conditioner/dto/air-conditioner-command.dto';
+import { MqttService } from './mqtt.service';
 
 interface SensorPayload { type?: unknown; roomId?: unknown; room?: unknown; temperature?: unknown; wendu?: unknown; humidity?: unknown; shidu?: unknown; timestamp?: unknown; time?: unknown; sensorId?: unknown; messageId?: unknown; commandId?: unknown; success?: unknown; actualPower?: unknown; actualTemperature?: unknown; message?: unknown; alarm?: unknown }
 interface SensorReading { roomId: RoomId; temperature: number; humidity: number; time: string; sensorId?: string }
 export interface SmokeStatus { roomId: RoomId; alarm: boolean; sensorId?: string; message: string; timestamp: string; updatedAt: string }
 export interface AirConditionerCommand { type: 'air_conditioner_command'; commandId: string; roomId: RoomId; power: boolean; targetTemperature: number; mode: 'cool' }
-interface PendingCommand { command: AirConditionerCommand; source: 'manual' | 'smart'; operator: string; requestedAt: string; timeout: NodeJS.Timeout }
+interface PendingCommand { command: AirConditionerCommand; source: 'manual' | 'smart'; operator: string; requestedAt: string; timeout: NodeJS.Timeout; transport: 'websocket' | 'mqtt' }
 export interface CommandResult { commandId: string; roomId: RoomId; status: 'pending' | 'success' | 'failed' | 'timeout'; success: boolean | null; message: string; command: AirConditionerCommand; requestedAt: string; completedAt?: string }
 interface RateState { windowStartedAt: number; count: number }
 
@@ -21,6 +22,7 @@ export class SensorGateway {
   private readonly logger = new Logger(SensorGateway.name);
   private readonly clients = new Set<WebSocket>();
   private readonly roomClients = new Map<RoomId, WebSocket>();
+  private readonly mqttSockets = new Map<RoomId, WebSocket>();
   private readonly pendingCommands = new Map<string, PendingCommand>();
   private readonly commandResults = new Map<string, CommandResult>();
   private readonly messageIds = new Map<string, number>();
@@ -29,8 +31,9 @@ export class SensorGateway {
   private readonly server = new WebSocketServer({ noServer: true, maxPayload: 64 * 1024 });
   private attached = false;
 
-  constructor(private readonly database: DatabaseService, private readonly config: ConfigService, private readonly operationLogs: OperationLogsService) {
+  constructor(private readonly database: DatabaseService, private readonly config: ConfigService, private readonly operationLogs: OperationLogsService, private readonly mqtt: MqttService) {
     this.server.on('connection', (socket) => this.handleConnection(socket));
+    this.mqtt.setMessageHandler((roomId, payload) => this.handleMqttMessage(roomId, payload));
   }
 
   attach(httpServer: Server) {
@@ -49,7 +52,11 @@ export class SensorGateway {
     this.logger.log('Sensor WebSocket endpoint available at /ws/sensors');
   }
 
-  health() { return { success: true, endpoint: '/ws/sensors', clients: this.clients.size, onlineRooms: [...this.roomClients.keys()], pendingCommands: this.pendingCommands.size, rooms: ROOM_IDS }; }
+  health() {
+    const websocketRooms = [...this.roomClients].filter(([, client]) => this.clients.has(client) && client.readyState === WebSocket.OPEN).map(([roomId]) => roomId);
+    const mqttHealth = this.mqtt.health();
+    return { success: true, endpoint: '/ws/sensors', clients: this.clients.size, onlineRooms: [...new Set([...websocketRooms, ...mqttHealth.onlineRooms])], pendingCommands: this.pendingCommands.size, mqtt: mqttHealth, rooms: ROOM_IDS };
+  }
 
   getSmokeStatuses(roomIdInput?: string) {
     if (roomIdInput !== undefined) {
@@ -63,12 +70,14 @@ export class SensorGateway {
     if (!isRoomId(roomIdInput)) throw new ServiceUnavailableException(`Invalid room ID: ${roomIdInput}`);
     const roomId = roomIdInput;
     const client = this.roomClients.get(roomId);
+    const mqttOnline = this.mqtt.isRoomOnline(roomId);
+    const websocketOnline = Boolean(client && this.clients.has(client) && client.readyState === WebSocket.OPEN);
     const command: AirConditionerCommand = { type: 'air_conditioner_command', commandId: randomUUID(), roomId, power: input.power, targetTemperature: input.targetTemperature, mode: input.mode };
     const source = input.source ?? 'manual';
     const operator = input.operator ?? 'admin';
     const requestedAt = new Date().toISOString();
 
-    if (!client || client.readyState !== WebSocket.OPEN) {
+    if (!websocketOnline && !mqttOnline) {
       await this.recordCommandResult(command, source, operator, false, '设备离线，未下发控制指令');
       throw new ServiceUnavailableException(`Room ${roomId} sensor device is offline`);
     }
@@ -77,10 +86,31 @@ export class SensorGateway {
     }
 
     const timeout = setTimeout(() => void this.failCommand(command.commandId, '设备未在 10 秒内返回执行结果'), 10_000);
-    this.pendingCommands.set(command.commandId, { command, source, operator, requestedAt, timeout });
+    const transport = mqttOnline ? 'mqtt' : 'websocket';
+    this.pendingCommands.set(command.commandId, { command, source, operator, requestedAt, timeout, transport });
     this.commandResults.set(command.commandId, { commandId: command.commandId, roomId, status: 'pending', success: null, message: '控制指令已下发，等待设备回执', command, requestedAt });
-    this.send(client, command);
-    return { success: true, status: 'pending', command, requestedAt, message: '控制指令已通过 WebSocket 下发，等待设备回执' };
+    if (transport === 'mqtt') this.mqtt.publishToRoom(roomId, command);
+    else this.send(client!, command);
+    return { success: true, status: 'pending', command, requestedAt, transport, message: `控制指令已通过 ${transport === 'mqtt' ? 'MQTT' : 'WebSocket'} 下发，等待设备回执` };
+  }
+
+  private handleMqttMessage(roomId: RoomId, payload: Record<string, unknown>) {
+    const socket = this.getMqttSocket(roomId);
+    this.roomClients.set(roomId, socket);
+    void this.handleMessage(socket, JSON.stringify({ ...payload, roomId }));
+  }
+
+  private getMqttSocket(roomId: RoomId): WebSocket {
+    const existing = this.mqttSockets.get(roomId);
+    if (existing) return existing;
+    const socket = {
+      readyState: WebSocket.OPEN,
+      send: (raw: string) => {
+        try { this.mqtt.publishToRoom(roomId, JSON.parse(raw)); } catch { /* invalid internal response */ }
+      },
+    } as unknown as WebSocket;
+    this.mqttSockets.set(roomId, socket);
+    return socket;
   }
 
   getCommandStatus(commandId: string) {
@@ -144,7 +174,27 @@ export class SensorGateway {
 
   private async handleTelemetry(socket: WebSocket, payload: SensorPayload) {
     const result = this.validateTelemetry(payload);
-    if (!result.ok) return this.send(socket, { type: 'error', success: false, code: 'INVALID_SENSOR_DATA', message: result.message });
+    if (!result.ok) {
+      this.logger.warn(`Invalid telemetry payload: ${JSON.stringify({
+        roomId: payload.roomId ?? payload.room,
+        temperature: payload.temperature ?? payload.wendu,
+        humidity: payload.humidity ?? payload.shidu,
+        type: payload.type,
+        messageId: payload.messageId,
+      })}; ${result.message}`);
+      return this.send(socket, {
+        type: 'error',
+        success: false,
+        code: 'INVALID_SENSOR_DATA',
+        message: result.message,
+        received: {
+          roomId: payload.roomId ?? payload.room,
+          temperature: payload.temperature ?? payload.wendu,
+          humidity: payload.humidity ?? payload.shidu,
+          type: payload.type,
+        },
+      });
+    }
     if (this.hasSeenMessage(result.messageId)) {
       return this.send(socket, { type: 'sensor_data_ack', success: true, duplicate: true, code: 'DUPLICATE_MESSAGE', message: '消息已处理过，未重复写入数据库', messageId: result.messageId, data: result.reading, receivedAt: new Date().toISOString() });
     }
@@ -154,8 +204,15 @@ export class SensorGateway {
       this.rememberMessage(result.messageId);
       this.send(socket, { type: 'sensor_data_ack', success: true, messageId: result.messageId, data: result.reading, receivedAt: new Date().toISOString() });
     } catch (error) {
-      this.logger.error(`Failed to persist sensor data for room ${result.reading.roomId}`, error);
-      this.send(socket, { type: 'error', success: false, code: 'PERSIST_FAILED', message: 'Sensor data could not be stored' });
+      const dbError = error as { code?: string; errno?: number; sqlMessage?: string; message?: string };
+      this.logger.error(`Failed to persist sensor data for room ${result.reading.roomId}: ${dbError.code ?? 'UNKNOWN'} ${dbError.sqlMessage ?? dbError.message ?? ''}`);
+      this.send(socket, {
+        type: 'error',
+        success: false,
+        code: 'PERSIST_FAILED',
+        message: 'Sensor data could not be stored',
+        databaseCode: dbError.code ?? 'UNKNOWN',
+      });
     }
   }
 
@@ -180,7 +237,9 @@ export class SensorGateway {
     for (const [roomId, client] of this.roomClients) {
       if (client !== socket) continue;
       this.roomClients.delete(roomId);
-      for (const [commandId, pending] of this.pendingCommands) if (pending.command.roomId === roomId) await this.failCommand(commandId, '设备连接已断开');
+      if (!this.mqtt.isRoomOnline(roomId)) {
+        for (const [commandId, pending] of this.pendingCommands) if (pending.command.roomId === roomId) await this.failCommand(commandId, '设备连接已断开');
+      }
     }
   }
 
@@ -200,7 +259,10 @@ export class SensorGateway {
   private validateTelemetry(payload: SensorPayload): { ok: true; reading: SensorReading; messageId?: string } | { ok: false; message: string } {
     const roomId = String(payload.roomId ?? payload.room ?? '');
     if (!isRoomId(roomId)) return { ok: false, message: `roomId must be one of: ${ROOM_IDS.join(', ')}` };
-    const temperature = Number(payload.temperature ?? payload.wendu); const humidity = Number(payload.humidity ?? payload.shidu);
+    const rawTemperature = payload.temperature ?? payload.wendu;
+    const rawHumidity = payload.humidity ?? payload.shidu;
+    const temperature = Number(rawTemperature);
+    const humidity = Number(rawHumidity);
     if (!Number.isFinite(temperature) || temperature < -50 || temperature > 100) return { ok: false, message: 'temperature must be between -50 and 100' };
     if (!Number.isFinite(humidity) || humidity < 0 || humidity > 100) return { ok: false, message: 'humidity must be between 0 and 100' };
     const date = payload.timestamp ?? payload.time ? new Date(String(payload.timestamp ?? payload.time)) : new Date();

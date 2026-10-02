@@ -67,6 +67,14 @@ mysql -h <DB_HOST> -P <DB_PORT> -u <DB_USER> -p <DB_NAME> < apps/api/database/mi
 
 建议在原服务器导出时同时保留表结构和数据，例如：`mysqldump -h <source-host> -u <source-user> -p <source-db> > initel.sql`，再在目标服务器执行 `mysql -u <target-user> -p <target-db> < initel.sql`。生产迁移前请先完成备份，并以测试库验证导入结果。
 
+温湿度表 `101`、`102`、`108`、`109`、`113`、`115`、`116`、`117`、`118`、`119` 缺失时，可执行 [003_create_telemetry_tables.sql](apps/api/database/migrations/003_create_telemetry_tables.sql) 创建符合 API 写入格式的空表。该迁移使用 `CREATE TABLE IF NOT EXISTS`，不会覆盖已有房间表或其中的数据。执行示例：
+
+```bash
+mysql -h <DB_HOST> -P <DB_PORT> -u <DB_USER> -p <DB_NAME> < apps/api/database/migrations/003_create_telemetry_tables.sql
+```
+
+MQTT 返回 `PERSIST_FAILED` 时查看 API 日志中的数据库错误码；若为 `ER_NO_SUCH_TABLE`，说明对应房间表不存在；若为 `ER_BAD_FIELD_ERROR`，说明现有表缺少 `wendu`、`shidu` 或 `time` 字段。
+
 ## 开发与验证
 
 ```powershell
@@ -119,6 +127,46 @@ server {
 后端开发命令会先编译 TypeScript 再启动 `dist/main.js`，以确保 NestJS 的装饰器元数据完整可用。代码更新后请停止旧 API 进程，再重新执行 `npm.cmd run dev:api` 或 `npm.cmd run dev:full`；不要继续使用旧的 `tsx watch src/main.ts` 进程，否则可能出现依赖为 `undefined`、接口返回 `500` 或前端 `/api` 连接失败。
 
 `npm warn Unknown global config "--init.module"` 是服务器上旧版 npm 配置带来的弃用警告，不是 API 无法启动的原因。可使用 `npm config delete init.module --location=global` 清理；若仍出现，请检查并删除用户目录 `~/.npmrc` 中的 `init.module` 或 `--init.module` 项，然后重新打开终端。
+
+如果启动日志出现 `Missing required environment variable: DB_HOST`，说明 API 在启动前没有读取到项目根目录 `.env`。前端随后出现 `vite http proxy error` / `ECONNREFUSED` 是连带结果，因为 API 进程已经退出。确认根目录存在 `.env`（不是只有 `.env.example`），且至少包含 `DB_HOST`、`DB_USER`、`DB_PASSWORD`、`DB_NAME`，然后重新编译并启动：
+
+```powershell
+Copy-Item .env.example .env  # 仅首次配置时执行，然后填写真实值
+npm.cmd run build:api
+npm.cmd run dev:full
+```
+
+API 现在按编译文件位置、当前目录和上级目录依次查找 `.env`，因此从项目根目录、`apps/api` 或 systemd 启动都可以读取同一份配置。修改 `.env` 后必须重启 API，不能只刷新浏览器。
+
+如果服务器日志出现 `vite:esbuild`、`The service is no longer running` 或 `The service was stopped`，通常是把开发依赖从 Windows 复制到了 Linux，导致 esbuild 平台二进制不匹配或没有执行权限；也可能是服务器内存不足导致 esbuild 被系统终止。生产环境不要使用 `npm run dev:full`，按下面方式运行：
+
+```bash
+# 在项目根目录执行，重新安装当前 Linux 平台依赖
+rm -rf node_modules apps/api/node_modules
+npm ci
+npm ci --prefix apps/api
+find node_modules/@esbuild -type f -path '*/bin/esbuild' -exec chmod +x {} +
+npm run build
+npm run build:api
+
+# API 使用构建产物启动
+npm --prefix apps/api run start
+```
+
+前端使用 Nginx 或其他静态文件服务器托管 `dist/`，不要在生产服务器启动 Vite。若必须临时启动开发服务，先执行 `node_modules/.bin/esbuild --version`；该命令必须能正常输出版本号。仍然退出时检查 `dmesg -T | grep -i -E 'killed process|out of memory|oom'`，若命中则增加服务器内存或 swap。
+
+构建阶段若出现 `exited with 137`，表示进程被 Linux 的 OOM Killer 终止。部署脚本会将类型检查、前端构建和 API 构建改为串行执行；如果仍然内存不足，可临时增加 2 GB swap（需要 root 权限）：
+
+```bash
+free -h
+fallocate -l 2G /swapfile
+chmod 600 /swapfile
+mkswap /swapfile
+swapon /swapfile
+free -h
+```
+
+确认构建完成后再运行 API，并将 `dist/` 交给 Nginx 托管。不要把 Windows 电脑上的 `node_modules` 上传到服务器，必须在服务器本机执行 `npm ci`。
 ## Linux One-Click Setup
 
 After uploading the project to a Linux server, run:

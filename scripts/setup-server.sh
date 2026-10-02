@@ -45,6 +45,15 @@ DEEPSEEK_API_KEY=$DEEPSEEK_API_KEY
 DEEPSEEK_BASE_URL=https://api.deepseek.com
 DEEPSEEK_MODEL=deepseek-chat
 SENSOR_WS_TOKEN=$SENSOR_WS_TOKEN
+MQTT_URL=
+MQTT_USERNAME=
+MQTT_PASSWORD=
+MQTT_CLIENT_ID=initel-api
+MQTT_UP_TOPIC=initel/devices/+/up
+MQTT_DOWN_TOPIC=initel/devices/{roomId}/down
+MQTT_DEVICE_TTL_MS=90000
+MQTT_RECONNECT_PERIOD_MS=5000
+MQTT_CONNECT_TIMEOUT_MS=10000
 EOF
   chmod 600 "$ENV_FILE"
 else
@@ -53,10 +62,17 @@ fi
 
 info 'Installing frontend dependencies'
 npm ci
+# Projects copied from Windows can lose the executable bit on esbuild's
+# platform binary. Repair it before Vite or the production build invokes it.
+find "$PROJECT_DIR/node_modules/@esbuild" -type f -path '*/bin/esbuild' -exec chmod +x {} + 2>/dev/null || true
+"$PROJECT_DIR/node_modules/.bin/esbuild" --version >/dev/null 2>&1 || fail 'esbuild is not executable. Remove node_modules and rerun this setup script.'
 info 'Installing API dependencies'
 npm ci --prefix apps/api
 info 'Building frontend and API'
-npm run build
+# Keep type-check and Vite in separate processes on small servers. Running the
+# root `build` script uses run-p and can make both memory-heavy jobs overlap.
+npm run type-check
+npm run build-only
 npm run build:api
 
 info 'Applying database migrations'
@@ -69,8 +85,8 @@ const mysql = require('mysql2/promise');
 const root = process.argv[2];
 const values = Object.fromEntries(fs.readFileSync(path.join(root, '.env'), 'utf8').split(/\r?\n/).filter((line) => line && !line.startsWith('#')).map((line) => { const i = line.indexOf('='); return [line.slice(0, i), line.slice(i + 1)]; }));
 (async () => {
-  const connection = await mysql.createConnection({ host: values.DB_HOST, port: Number(values.DB_PORT || 3306), user: values.DB_USER, password: values.DB_PASSWORD, database: values.DB_NAME });
-  for (const file of ['001_create_users.sql', '002_create_operation_logs.sql']) {
+  const connection = await mysql.createConnection({ host: values.DB_HOST, port: Number(values.DB_PORT || 3306), user: values.DB_USER, password: values.DB_PASSWORD, database: values.DB_NAME, multipleStatements: true });
+  for (const file of ['001_create_users.sql', '002_create_operation_logs.sql', '003_create_telemetry_tables.sql']) {
     await connection.query(fs.readFileSync(path.join(root, 'apps/api/database/migrations', file), 'utf8'));
     console.log(`Applied ${file}`);
   }
