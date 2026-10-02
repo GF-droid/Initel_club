@@ -53,7 +53,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, watchEffect, onMounted, onUnmounted } from 'vue'
+import { computed, reactive, watchEffect, onMounted, onUnmounted } from 'vue'
 import { useDataStore } from '@/store/Data/DataStore'
 import { storeToRefs } from 'pinia'
 import { useAirConditioningStore } from '@/store/airConditioningStore'
@@ -66,7 +66,7 @@ const {
   temp6, hum6, temp7, hum7, temp8, hum8, temp9, hum9, temp10, hum10,
 } = storeToRefs(dataStore)
 
-const cards = ref([
+const cards = computed(() => [
   { roomId: '101', name: '101房间', temperature: temp1.value, humidity: hum1.value },
   { roomId: '102', name: '102房间', temperature: temp2.value, humidity: hum2.value },
   { roomId: '108', name: '108房间', temperature: temp3.value, humidity: hum3.value },
@@ -91,18 +91,24 @@ watchEffect(() => {
     [temp7.value, hum7.value], [temp8.value, hum8.value],
     [temp9.value, hum9.value], [temp10.value, hum10.value],
   ]
-  values.forEach(([temperature, humidity], index) => {
-    cards.value[index].temperature = temperature
-    cards.value[index].humidity = humidity
-  })
   airStore.rooms.forEach((room, index) => { void airStore.evaluateRoomTemperature(room.id, Number(values[index]?.[0])) })
 })
 
 let intervalId: number
+let refreshInFlight = false
+const refreshData = async () => {
+  if (refreshInFlight) return
+  refreshInFlight = true
+  try {
+    await Promise.all([dataStore.getalldata(), dataStore.getSmokeStatuses()])
+  } finally {
+    refreshInFlight = false
+  }
+}
+
 onMounted(() => {
-  dataStore.getalldata()
-  dataStore.getSmokeStatuses()
-  intervalId = window.setInterval(() => { dataStore.getalldata(); dataStore.getSmokeStatuses() }, 5000)
+  void refreshData()
+  intervalId = window.setInterval(() => void refreshData(), 5000)
 })
 
 onUnmounted(() => window.clearInterval(intervalId))

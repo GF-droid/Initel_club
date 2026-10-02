@@ -51,6 +51,7 @@
 <script setup>
 import { ref, onMounted, onBeforeUnmount } from 'vue';
 import DataCard from '@/components/DataCard.vue';
+import { useDataStore } from '@/store/Data/DataStore';
 import {
   DataBoard,
   Clock,
@@ -76,6 +77,7 @@ const formatTime = () => {
   });
 };
 const updateTime = ref(formatTime());
+const dataStore = useDataStore();
 let clockTimer;
 
 function resizeCanvas() {
@@ -188,9 +190,9 @@ function toggleParticles() {
   }
 }
 
-function refreshData() {
-  // 这里可以触发数据刷新
-  console.log('刷新数据');
+async function refreshData() {
+  await Promise.all([dataStore.getalldata(), dataStore.getSmokeStatuses()]);
+  updateTime.value = formatTime();
 }
 
 function initParticles() {

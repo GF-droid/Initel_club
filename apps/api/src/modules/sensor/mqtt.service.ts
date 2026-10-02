@@ -123,7 +123,19 @@ export class MqttService implements OnModuleInit, OnModuleDestroy {
       return;
     }
     payload = this.normalizePayload(payload);
-    const roomId = String(payload.roomId ?? topicRoomId ?? '');
+    const payloadRoomId = payload.roomId === undefined ? undefined : String(payload.roomId);
+    const topicRoom = topicRoomId && isRoomId(topicRoomId) ? topicRoomId : undefined;
+    if (topicRoom && payloadRoomId && payloadRoomId !== topicRoom) {
+      this.publishToRoom(topicRoom, {
+        type: 'error',
+        success: false,
+        code: 'ROOM_MISMATCH',
+        message: 'roomId does not match the MQTT topic',
+      });
+      this.logger.warn(`Ignoring MQTT message with mismatched roomId: topic=${topicRoom}, payload=${payloadRoomId}`);
+      return;
+    }
+    const roomId = String(payloadRoomId ?? topicRoomId ?? '');
     if (!isRoomId(roomId)) {
       this.logger.warn(`Ignoring MQTT message with invalid roomId: ${roomId}`);
       return;

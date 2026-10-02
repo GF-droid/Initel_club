@@ -3,7 +3,7 @@ import { RowDataPacket } from 'mysql2';
 import { DatabaseService } from '../../database/database.service';
 import { ROOM_IDS, RoomId, isRoomId } from './telemetry.constants';
 
-type ReadingRow = RowDataPacket & { wendu: number | string; shidu: number | string; time: string };
+type ReadingRow = RowDataPacket & { id: number; wendu: number | string; shidu: number | string; time: string };
 
 @Injectable()
 export class TelemetryService {
@@ -15,12 +15,13 @@ export class TelemetryService {
         try {
           const [row] = await this.findReadings(roomId, 1);
           return {
+            roomId,
             wendu: row ? this.round(row.wendu) : 0,
             shidu: row ? this.round(row.shidu) : 0,
             time: row ? row.time : new Date().toISOString(),
           };
         } catch {
-          return { wendu: 0, shidu: 0, time: new Date().toISOString() };
+          return { roomId, wendu: 0, shidu: 0, time: new Date().toISOString() };
         }
       }),
     );
@@ -104,14 +105,15 @@ export class TelemetryService {
 
   private async findReadings(roomId: RoomId, limit: number, startTime?: string, endTime?: string) {
     const parameters: unknown[] = [];
-    let sql = `SELECT wendu, shidu, time FROM ${this.telemetryTable(roomId)}`;
+    let sql = `SELECT id, wendu, shidu, time FROM ${this.telemetryTable(roomId)}`;
 
     if (startTime && endTime) {
       sql += ' WHERE time BETWEEN ? AND ?';
       parameters.push(startTime, endTime);
     }
 
-    sql += ' ORDER BY time DESC LIMIT ?';
+    // The auto-increment id reflects arrival order; device timestamps may repeat or be inaccurate.
+    sql += ' ORDER BY id DESC LIMIT ?';
     parameters.push(limit);
     return this.database.query<ReadingRow[]>(sql, parameters);
   }

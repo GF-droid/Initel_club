@@ -5,6 +5,7 @@ import { ElMessage } from 'element-plus';
 import { ref, type Ref } from 'vue';
 
 interface DataItem {
+    roomId?: string;
     wendu: number;
     shidu: number;
     time: string;
@@ -118,7 +119,7 @@ export const useDataStore = defineStore('data', {
             try {
                 console.log('🔄 开始获取全部数据...');
 
-                const response = await axios.get<DataItem[]>("/telemetry/rooms", {
+                const response = await axios.get<any>("/telemetry/rooms", {
                     timeout: 10000,
                     withCredentials: false
                 });
@@ -127,10 +128,11 @@ export const useDataStore = defineStore('data', {
                 console.log('📊 响应数据详情:', JSON.stringify(response.data, null, 2));
 
                 // 详细检查每个数据项
-                if (response.data && Array.isArray(response.data)) {
-                    console.log(`✅ 成功接收 ${response.data.length} 条数据`);
+                const payload = Array.isArray(response.data) ? response.data : response.data?.data;
+                if (Array.isArray(payload)) {
+                    console.log(`✅ 成功接收 ${payload.length} 条数据`);
 
-                    response.data.forEach((item, index) => {
+                    payload.forEach((item, index) => {
                         console.log(`🔍 房间 ${index + 1} 原始数据:`, {
                             wendu: item.wendu,
                             shidu: item.shidu,
@@ -140,10 +142,12 @@ export const useDataStore = defineStore('data', {
                         });
                     });
 
-                    const roomCount = Math.min(response.data.length, 10);
+                    const roomIds = ['101', '102', '108', '109', '113', '115', '116', '117', '118', '119'];
+                    const hasRoomIds = payload.some((item) => item && item.roomId !== undefined);
+                    const roomCount = Math.min(payload.length, 10);
 
                     for (let i = 0; i < roomCount; i++) {
-                        const dataItem = response.data[i];
+                        const dataItem = payload.find((item) => String(item?.roomId ?? '') === roomIds[i]) ?? (hasRoomIds ? undefined : payload[i]);
                         if (dataItem && typeof dataItem === 'object') {
                             // 更安全的数据转换
                             const tempValue = Number(dataItem.wendu);

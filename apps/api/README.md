@@ -37,12 +37,13 @@ Authentication requires the `users` table defined in `database/migrations/001_cr
 - `ai`: DeepSeek-compatible chat and report endpoints
 - `health`: service and database health check
 
-## Sensor WebSocket
+## Sensor MQTT
 
-The API accepts sensor readings at `ws://<host>:<PORT>/ws/sensors`. Send one JSON message per reading:
+The API accepts sensor readings on the MQTT topic `initel/devices/<roomId>/up`. Send one JSON message per reading:
 
 ```json
 {
+  "type": "telemetry",
   "roomId": "101",
   "temperature": 24.6,
   "humidity": 52.3,
@@ -51,13 +52,13 @@ The API accepts sensor readings at `ws://<host>:<PORT>/ws/sensors`. Send one JSO
 }
 ```
 
-`roomId` must be one of the configured rooms (`101`, `102`, `108`, `109`, `113`, `115`, `116`, `117`, `118`, `119`). The service validates ranges, stores valid readings in that room's telemetry table, returns a `sensor_data_ack`, and broadcasts `sensor_data` to connected clients. Send `ping` to receive a `pong`. Connection status is available at `GET /api/v1/sensors/health`.
+`roomId` must be one of the configured rooms (`101`, `102`, `108`, `109`, `113`, `115`, `116`, `117`, `118`, `119`). The service validates ranges, stores valid readings in that room's telemetry table, and publishes a `sensor_data_ack` to the room downlink topic. Connection status is available at `GET /api/v1/sensors/health`. The API uses MQTT only for hardware transport and does not fall back to a sensor WebSocket.
 
-Set `SENSOR_WS_TOKEN` in `.env` to protect the endpoint. A device can then connect with `?token=<token>` or an `Authorization: Bearer <token>` header. When the variable is empty, token authentication is disabled for local testing.
+MQTT Broker authentication is configured with `MQTT_USERNAME` and `MQTT_PASSWORD`.
 
-## Optional MQTT transport
+## MQTT configuration
 
-MQTT is an additional hardware transport; the WebSocket endpoint remains available. Leave `MQTT_URL` empty to use WebSocket only. When MQTT is configured, devices publish to `initel/devices/<roomId>/up` (or the configured `MQTT_UP_TOPIC`) and subscribe to `initel/devices/<roomId>/down` (or `MQTT_DOWN_TOPIC`). The JSON payloads are unchanged: `telemetry`, `smoke_alarm`, and `air_conditioner_command_ack` are sent upstream; `air_conditioner_command` is sent downstream.
+Devices publish to `initel/devices/<roomId>/up` (or the configured `MQTT_UP_TOPIC`) and subscribe to `initel/devices/<roomId>/down` (or `MQTT_DOWN_TOPIC`). The JSON payloads are unchanged: `telemetry`, `smoke_alarm`, and `air_conditioner_command_ack` are sent upstream; `air_conditioner_command` is sent downstream.
 
 ```env
 MQTT_URL=mqtt://127.0.0.1:1883
@@ -71,7 +72,7 @@ MQTT_RECONNECT_PERIOD_MS=5000
 MQTT_CONNECT_TIMEOUT_MS=10000
 ```
 
-The MQTT client automatically reconnects after network loss. `MQTT_RECONNECT_PERIOD_MS` controls the retry interval and `MQTT_CONNECT_TIMEOUT_MS` controls each connection attempt. An MQTT device is considered online after an upstream message and remains online for `MQTT_DEVICE_TTL_MS` (default 90 seconds). The existing HTTP air-conditioner endpoint automatically selects MQTT for an MQTT-online room and falls back to WebSocket for WebSocket-online rooms. Use `GET /api/v1/sensors/health` to inspect MQTT connection status and the latest error.
+The MQTT client automatically reconnects after network loss. `MQTT_RECONNECT_PERIOD_MS` controls the retry interval and `MQTT_CONNECT_TIMEOUT_MS` controls each connection attempt. An MQTT device is considered online after an upstream message and remains online for `MQTT_DEVICE_TTL_MS` (default 90 seconds). The HTTP air-conditioner endpoint sends commands through MQTT. Use `GET /api/v1/sensors/health` to inspect MQTT connection status and the latest error.
 
 Example upstream telemetry:
 
@@ -87,11 +88,11 @@ Example upstream telemetry:
 }
 ```
 
-Example downstream air-conditioner command and upstream acknowledgement are the same JSON objects shown below for WebSocket.
+Example downstream air-conditioner command and upstream acknowledgement are the same JSON objects shown below for MQTT.
 
 ## Air Conditioner Commands
 
-The management frontend sends a full command to the HTTP API. The API forwards this exact command through the corresponding room's sensor WebSocket connection and waits up to 10 seconds for a device acknowledgement.
+The management frontend sends a full command to the HTTP API. The API forwards this exact command through the room's MQTT downlink topic and waits up to 10 seconds for a device acknowledgement on the MQTT uplink topic.
 
 ```http
 POST /api/v1/air-conditioners/101/commands
@@ -105,7 +106,7 @@ Content-Type: application/json
 }
 ```
 
-The accepted response contains the generated `commandId` and `status: "pending"`. The ESP32 must return this message on the same WebSocket connection:
+The accepted response contains the generated `commandId` and `status: "pending"`. The ESP32 must publish this message to the room's MQTT uplink topic:
 
 ```json
 {

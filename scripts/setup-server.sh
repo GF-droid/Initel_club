@@ -27,7 +27,9 @@ if [[ ! -f "$ENV_FILE" ]] || [[ "${FORCE_ENV:-false}" == "true" ]]; then
   PORT="$(ask 'API port' '15010')"
   CORS_ORIGIN="$(ask 'Frontend origin' 'http://localhost')"
   DEEPSEEK_API_KEY="$(ask_secret 'DeepSeek API key (leave empty to disable AI)')"
-  SENSOR_WS_TOKEN="$(ask_secret 'Sensor WebSocket token (leave empty to disable authentication)')"
+  MQTT_URL="$(ask 'MQTT broker URL' 'mqtt://127.0.0.1:1883')"
+  MQTT_USERNAME="$(ask 'MQTT username (leave empty if not required)' '')"
+  MQTT_PASSWORD="$(ask_secret 'MQTT password (leave empty if not required)')"
   JWT_SECRET="$(openssl rand -hex 32 2>/dev/null || node -e "console.log(require('crypto').randomBytes(32).toString('hex'))")"
   cat > "$ENV_FILE" <<EOF
 DB_HOST=$DB_HOST
@@ -44,10 +46,9 @@ JWT_EXPIRES_IN=8h
 DEEPSEEK_API_KEY=$DEEPSEEK_API_KEY
 DEEPSEEK_BASE_URL=https://api.deepseek.com
 DEEPSEEK_MODEL=deepseek-chat
-SENSOR_WS_TOKEN=$SENSOR_WS_TOKEN
-MQTT_URL=
-MQTT_USERNAME=
-MQTT_PASSWORD=
+MQTT_URL=$MQTT_URL
+MQTT_USERNAME=$MQTT_USERNAME
+MQTT_PASSWORD=$MQTT_PASSWORD
 MQTT_CLIENT_ID=initel-api
 MQTT_UP_TOPIC=initel/devices/+/up
 MQTT_DOWN_TOPIC=initel/devices/{roomId}/down
