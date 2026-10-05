@@ -1,6 +1,6 @@
 # Initel Club 智能仓储管理系统
 
-项目由 Vue 3 + Vite 前端和 NestJS API 组成，提供仓储温湿度监测、库存出入库、用户认证和 Moonshot 兼容的 AI 助手功能。
+项目由 Vue 3 + Vite 前端和 NestJS API 组成，提供仓储温湿度监测、库存出入库、用户认证和 DeepSeek 驱动的 AI 助手功能。
 
 ## 移植后的配置清单
 
@@ -43,12 +43,14 @@ JWT_SECRET=replace-with-a-long-random-secret
 JWT_EXPIRES_IN=8h
 
 # 可选：配置后才可使用 AI 对话和报告功能
-MOONSHOT_API_KEY=replace-with-your-api-key
-MOONSHOT_BASE_URL=https://api.moonshot.cn/v1
-MOONSHOT_MODEL=moonshot-v1-8k
+DEEPSEEK_API_KEY=replace-with-your-deepseek-api-key
+DEEPSEEK_BASE_URL=https://api.deepseek.com
+# 合法模型 ID 为 deepseek-flash 或 deepseek-v4-pro；
+# 旧文档中的 deepseek-chat 已停止提供，写了会返回 400。
+DEEPSEEK_MODEL=deepseek-flash
 ```
 
-`DB_HOST`、`DB_USER`、`DB_PASSWORD`、`DB_NAME` 和 `JWT_SECRET` 是后端启动所必需的配置；`MOONSHOT_API_KEY` 虽可不填写，但 AI 接口将返回“未配置”的服务错误。`VITE_` 前缀变量会在前端构建时写入产物，因此改变它后必须重新执行前端构建。
+`DB_HOST`、`DB_USER`、`DB_PASSWORD`、`DB_NAME` 和 `JWT_SECRET` 是后端启动所必需的配置；`DEEPSEEK_API_KEY` 虽可不填写，但 AI 接口将返回“未配置”的服务错误。`VITE_` 前缀变量会在前端构建时写入产物，因此改变它后必须重新执行前端构建。
 
 ## 数据库迁移
 

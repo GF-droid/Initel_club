@@ -35,6 +35,59 @@ export class InventoryService {
     };
   }
 
+  /**
+   * Bulk inbound used by the Excel import. Rows are grouped by room because each
+   * room has its own inventory table, then written inside a single transaction so
+   * a malformed row cannot leave a half-imported file behind.
+   */
+  async inboundBatch(items: InboundDto[]) {
+    const grouped = new Map<RoomId, InboundDto[]>();
+    for (const input of items) {
+      const roomId = this.requireRoom(input.home);
+      const list = grouped.get(roomId);
+      if (list) list.push(input);
+      else grouped.set(roomId, [input]);
+    }
+
+    const time = this.mysqlDateTime();
+    const connection = await this.database.getConnection();
+
+    try {
+      await connection.beginTransaction();
+      let inserted = 0;
+      for (const [roomId, list] of grouped) {
+        const placeholders = list.map(() => '(?, ?, ?, ?, ?, ?, ?)').join(', ');
+        const parameters = list.flatMap((input) => [
+          roomId,
+          input.name,
+          input.number,
+          input.price,
+          input.unity ?? null,
+          input.content ?? null,
+          time,
+        ]);
+        const [result] = await connection.query<ResultSetHeader>(
+          `INSERT INTO ${this.inventoryTable(roomId)} (home, name, number, price, unity, content, time)
+           VALUES ${placeholders}`,
+          parameters,
+        );
+        inserted += result.affectedRows;
+      }
+
+      await connection.commit();
+      return {
+        success: true,
+        message: 'Batch inbound completed',
+        data: { inserted, total: items.length, rooms: [...grouped.keys()] },
+      };
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
+    }
+  }
+
   async getRoomItems(roomId: string) {
     const room = this.requireRoom(roomId);
     const table = this.inventoryTable(room);

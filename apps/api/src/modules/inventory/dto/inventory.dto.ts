@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer';
-import { IsIn, IsNotEmpty, IsNumber, IsOptional, IsString, Min } from 'class-validator';
+import { ArrayMaxSize, ArrayMinSize, IsArray, IsIn, IsNotEmpty, IsNumber, IsOptional, IsString, Min, ValidateNested } from 'class-validator';
 import { ROOM_IDS } from '../../telemetry/telemetry.constants';
 
 export class InboundDto {
@@ -27,6 +27,15 @@ export class InboundDto {
   @IsOptional()
   @IsString()
   content?: string;
+}
+
+export class InboundBatchDto {
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(1000)
+  @ValidateNested({ each: true })
+  @Type(() => InboundDto)
+  items!: InboundDto[];
 }
 
 export class OutboundDto {

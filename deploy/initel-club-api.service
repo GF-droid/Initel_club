@@ -1,0 +1,45 @@
+[Unit]
+Description=Initel Club API (NestJS)
+Documentation=file:///srv/initel-club/README.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+
+# ==== 下面三处按实际情况修改 ====
+# 项目根目录（包含 .env 和 dist/ 的那一层）
+WorkingDirectory=/srv/initel-club
+# 运行用户。必须与 .env 的所有者一致：.env 通常是 chmod 600，
+# 换一个用户运行会读不到它，表现为启动即报
+# "Missing required environment variable: DB_HOST"。
+User=root
+# node 的绝对路径，用 `command -v node` 查
+ExecStart=/usr/bin/node /srv/initel-club/apps/api/dist/main.js
+
+# 注意：这里【故意不写】EnvironmentFile。
+# 应用自己用 dotenv 读同目录下的 .env（app.module.ts 会按编译产物位置、
+# 当前目录、上级目录依次查找），这是已经验证可用的路径。
+# 交给 systemd 解析反而多一层限制：EnvironmentFile 的语法比 dotenv 严格，
+# 而这份 .env 里有大量中文注释。
+
+Restart=always
+RestartSec=5
+
+# 崩溃循环保护：5 分钟内超过 10 次就停止重试，避免日志刷爆磁盘
+StartLimitIntervalSec=300
+StartLimitBurst=10
+
+# 日志进 journald：journalctl -u initel-club-api -f
+StandardOutput=journal
+StandardError=journal
+
+# 基本加固（Node 运行时只需要读项目目录和自己的临时目录）
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=read-only
+ReadWritePaths=/srv/initel-club
+
+[Install]
+WantedBy=multi-user.target

@@ -27,11 +27,15 @@ export function getAxiosInstance() {
             return response;
         },
         (error) => {
+            // `data` carries the server's own error payload (NestJS returns
+            // { statusCode, message, path }). Without it a failure only shows a
+            // bare status code and the real cause stays invisible.
             console.error('❌ 请求失败:', {
                 url: error.config?.url,
                 status: error.response?.status,
                 statusText: error.response?.statusText,
-                message: error.message
+                message: error.message,
+                data: error.response?.data
             });
             return Promise.reject(error);
         }

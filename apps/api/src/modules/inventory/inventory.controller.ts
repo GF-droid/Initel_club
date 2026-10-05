@@ -1,6 +1,6 @@
 import { Body, Controller, Get, Inject, Param, Post } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
-import { InboundDto, OutboundDto } from './dto/inventory.dto';
+import { InboundBatchDto, InboundDto, OutboundDto } from './dto/inventory.dto';
 import { InventoryService } from './inventory.service';
 
 @ApiTags('inventory')
@@ -11,6 +11,11 @@ export class InventoryController {
   @Post('inbound')
   inbound(@Body() input: InboundDto) {
     return this.inventoryService.inbound(input);
+  }
+
+  @Post('inbound/batch')
+  inboundBatch(@Body() input: InboundBatchDto) {
+    return this.inventoryService.inboundBatch(input.items);
   }
 
   @Post('outbound')

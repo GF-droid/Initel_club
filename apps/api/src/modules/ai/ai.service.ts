@@ -1,4 +1,4 @@
-import { Inject, Injectable, ServiceUnavailableException } from '@nestjs/common';
+import { BadGatewayException, BadRequestException, Inject, Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import OpenAI from 'openai';
 import { RowDataPacket } from 'mysql2';
@@ -13,6 +13,7 @@ const ROOM_IDS = ['101', '102', '108', '109', '113', '115', '116', '117', '118',
 
 @Injectable()
 export class AiService {
+  private readonly logger = new Logger(AiService.name);
   private readonly histories = new Map<string, HistoryMessage[]>();
 
   constructor(@Inject(ConfigService) private readonly config: ConfigService, @Inject(DatabaseService) private readonly database: DatabaseService) {}
@@ -35,7 +36,7 @@ export class AiService {
     const sessionId = input.sessionId ?? 'default';
     const history = this.histories.get(sessionId) ?? [];
     const context = await this.getWarehouseContext();
-    const completion = await this.client().chat.completions.create({
+    const completion = await this.callDeepSeek(() => this.client().chat.completions.create({
       model: this.config.get<string>('DEEPSEEK_MODEL') ?? 'deepseek-chat',
       messages: [
         { role: 'system', content: `你是智能仓储 AI 助手。回答必须基于以下数据库实时快照；若数据缺失请明确说明，不能编造。给出清晰、可执行的仓储建议。\n\n${JSON.stringify(context.promptData)}` },
@@ -44,7 +45,7 @@ export class AiService {
       ],
       temperature: 0.4,
       max_tokens: 1200,
-    });
+    }));
     const response = completion.choices[0]?.message.content ?? '未获得模型回复。';
     const updatedHistory: HistoryMessage[] = [...history, { role: 'user', content: input.message }, { role: 'assistant', content: response }];
     this.histories.set(sessionId, updatedHistory.slice(-20));
@@ -55,12 +56,12 @@ export class AiService {
     const context = await this.getWarehouseContext();
     const reportType = input.reportType ?? '运营';
     const dateRange = input.dateRange ?? '当前实时数据';
-    const completion = await this.client().chat.completions.create({
+    const completion = await this.callDeepSeek(() => this.client().chat.completions.create({
       model: this.config.get<string>('DEEPSEEK_MODEL') ?? 'deepseek-chat',
       messages: [{ role: 'system', content: `你是仓储运营分析师。仅依据下列数据库快照生成结构化报告，列出数据依据、风险和建议。\n${JSON.stringify(context.promptData)}` }, { role: 'user', content: `生成${dateRange}的${reportType}报告。` }],
       temperature: 0.3,
       max_tokens: 1500,
-    });
+    }));
     return { success: true, report: completion.choices[0]?.message.content ?? '', generatedAt: new Date().toISOString(), type: `${reportType}报告` };
   }
 
@@ -89,6 +90,37 @@ export class AiService {
     const averageHumidity = availableTelemetry.length ? Math.round(availableTelemetry.reduce((sum, item) => sum + item.humidity, 0) / availableTelemetry.length * 10) / 10 : null;
     const totalQuantity = inventory.reduce((sum, item) => sum + item.totalQuantity, 0);
     return { dashboard: { averageTemperature, averageHumidity, telemetryRooms: availableTelemetry.length, totalQuantity, productTypes: inventory.reduce((sum, item) => sum + item.productTypes, 0), failedOperations: recentOperations.filter((item) => !item.success).length }, promptData: { telemetry, inventory, recentOperations, generatedAt: new Date().toISOString() } };
+  }
+
+  /**
+   * Wraps a DeepSeek request so an upstream failure keeps its own HTTP status and
+   * message. The OpenAI SDK throws plain Errors for API failures, and the global
+   * HttpExceptionFilter maps anything that is not an HttpException to an opaque
+   * 500 — which made "model does not exist", "invalid key" and "no balance" all
+   * look identical on the client.
+   */
+  private async callDeepSeek<T>(operation: () => Promise<T>): Promise<T> {
+    try {
+      return await operation();
+    } catch (error) {
+      const status = this.httpStatus(error);
+      const model = this.config.get<string>('DEEPSEEK_MODEL') ?? 'deepseek-chat';
+      const detail = error instanceof Error ? error.message : String(error);
+      this.logger.error(`DeepSeek request failed (HTTP ${status ?? 'n/a'}, model=${model}): ${detail}`);
+
+      if (status === 400) throw new BadRequestException(`DeepSeek 拒绝了请求（HTTP 400，模型「${model}」）：${detail}`);
+      if (status === 401 || status === 403) throw new ServiceUnavailableException(`DeepSeek 认证失败（HTTP ${status}）：API 密钥无效或已被吊销 — ${detail}`);
+      if (status === 402) throw new ServiceUnavailableException(`DeepSeek 账户余额不足（HTTP 402）：${detail}`);
+      if (status === 404) throw new BadRequestException(`DeepSeek 接口不存在（HTTP 404）：请检查 DEEPSEEK_BASE_URL — ${detail}`);
+      if (status === 429) throw new ServiceUnavailableException(`DeepSeek 触发限流（HTTP 429），请稍后重试：${detail}`);
+      if (status !== undefined && status >= 500) throw new BadGatewayException(`DeepSeek 服务端异常（HTTP ${status}）：${detail}`);
+      throw new BadGatewayException(`无法连接 DeepSeek（${this.config.get<string>('DEEPSEEK_BASE_URL') ?? 'https://api.deepseek.com'}）：${detail}`);
+    }
+  }
+
+  private httpStatus(error: unknown): number | undefined {
+    const status = (error as { status?: unknown } | null)?.status;
+    return typeof status === 'number' ? status : undefined;
   }
 
   private client(): OpenAI {
