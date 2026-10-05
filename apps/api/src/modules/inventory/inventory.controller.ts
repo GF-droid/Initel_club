@@ -1,6 +1,6 @@
-import { Body, Controller, Get, Inject, Param, Post } from '@nestjs/common';
+import { Body, Controller, Get, Inject, Param, Post, Query } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
-import { InboundBatchDto, InboundDto, OutboundDto } from './dto/inventory.dto';
+import { InboundBatchDto, InboundDto, LedgerQueryDto, OutboundDto } from './dto/inventory.dto';
 import { InventoryService } from './inventory.service';
 
 @ApiTags('inventory')
@@ -21,6 +21,12 @@ export class InventoryController {
   @Post('outbound')
   outbound(@Body() input: OutboundDto) {
     return this.inventoryService.outbound(input);
+  }
+
+  /** 库存流水（台账）：只追加的历史记录，可按房间/物资/类型/时间筛选。 */
+  @Get('ledger')
+  getLedger(@Query() query: LedgerQueryDto) {
+    return this.inventoryService.getLedger(query);
   }
 
   @Get('rooms/:roomId/items')

@@ -1,7 +1,5 @@
 import { createRouter, createWebHistory, type Router, type RouteRecordRaw } from 'vue-router'
 import { useLoginAuthStore } from '@/store/login/loginAuthStore'
-import { UseAuth } from '@/utils/auth'
-import { storeToRefs } from 'pinia'
 
 
 const routes: RouteRecordRaw[] = [{
@@ -51,11 +49,23 @@ const routes: RouteRecordRaw[] = [{
         component:()=>import('@/views/SearchPage.vue')
         },
         {
-        path: "monitoring",
-        name: "Monitoring",
-        component: () => import('@/views/Cam.vue')
+        path:"ledger",
+        name:"ledger",
+        component:()=>import('@/views/LedgerPage.vue')
         },
-       
+        {
+        path:"sku",
+        name:"sku",
+        component:()=>import('@/views/SkuPage.vue')
+        },
+        // 仓储监控：功能尚未实现，暂时下线。
+        // Cam.vue 与 VideoPlayer.vue 仍保留在仓库中，恢复时取消本段注释即可
+        // （同时要恢复 NavHome.vue 里的菜单项和图标导入）。
+        // {
+        // path: "monitoring",
+        // name: "Monitoring",
+        // component: () => import('@/views/Cam.vue')
+        // },
     ]
 },
 
@@ -78,18 +88,30 @@ const router: Router = createRouter({
     routes: routes
 })
 
-// // 添加全局前置守卫
-// router.beforeEach((to, from, next) => {
-//     const auth = UseAuth()
-//     const authStore = useLoginAuthStore()
-//     if (to.name !== 'login' && !authStore.isLoggedIn &&!auth.isallow) {
-//         next({ name: 'login' });
-//     } else {
-//         // if (auth.isallow) {
-//             next();
-//         // }
-       
-//     }
-// })
+// 全局前置守卫：未登录不能进入工作台；已登录则不再停留在登录页。
+//
+// 这只是前端体验层面的拦截 —— 真正的访问控制在 API 的全局 JwtAuthGuard 上。
+// 仅靠前端守卫挡不住直接调用接口，所以两者必须同时存在。
+// 仅这两个路由名是公开的，其余（含 404）都要求登录。
+const PUBLIC_ROUTES = new Set(['login', 'NotFound'])
+
+router.beforeEach((to) => {
+    const authStore = useLoginAuthStore()
+    const isPublic = PUBLIC_ROUTES.has(String(to.name ?? ''))
+
+    if (!isPublic && !authStore.isLoggedIn) {
+        return {
+            name: 'login',
+            // 记住原目标，登录后跳回去
+            query: to.fullPath && to.fullPath !== '/' ? { redirect: to.fullPath } : undefined
+        }
+    }
+
+    if (to.name === 'login' && authStore.isLoggedIn) {
+        return { name: 'home' }
+    }
+
+    return true
+})
 
 export default router

@@ -87,10 +87,38 @@ const root = process.argv[2];
 const values = Object.fromEntries(fs.readFileSync(path.join(root, '.env'), 'utf8').split(/\r?\n/).filter((line) => line && !line.startsWith('#')).map((line) => { const i = line.indexOf('='); return [line.slice(0, i), line.slice(i + 1)]; }));
 (async () => {
   const connection = await mysql.createConnection({ host: values.DB_HOST, port: Number(values.DB_PORT || 3306), user: values.DB_USER, password: values.DB_PASSWORD, database: values.DB_NAME, multipleStatements: true });
-  for (const file of ['001_create_users.sql', '002_create_operation_logs.sql', '003_create_telemetry_tables.sql']) {
-    await connection.query(fs.readFileSync(path.join(root, 'apps/api/database/migrations', file), 'utf8'));
+  const migrationsDir = path.join(root, 'apps/api/database/migrations');
+  const read = (file) => fs.readFileSync(path.join(migrationsDir, file), 'utf8');
+
+  // 幂等迁移：都用了 CREATE TABLE IF NOT EXISTS / CREATE TABLE ... LIKE
+  for (const file of [
+    '001_create_users.sql',
+    '002_create_operation_logs.sql',
+    '003_create_telemetry_tables.sql',
+    '004_create_sku_table.sql',
+    '005_create_inventory_ledger.sql',
+  ]) {
+    await connection.query(read(file));
     console.log(`Applied ${file}`);
   }
+
+  // 006 给既有库存表加 sku_code 列，【不是幂等的】，而且部分房间的表可能不存在。
+  // 因此逐条执行、逐条容错：列已存在或表不存在都只警告，不中断部署。
+  const statements = read('006_add_sku_code_to_inventory.sql')
+    .split(';')
+    .map((chunk) => chunk.replace(/^\s*--.*$/gm, '').trim())
+    .filter(Boolean);
+  let applied = 0;
+  for (const statement of statements) {
+    try {
+      await connection.query(statement);
+      applied += 1;
+    } catch (error) {
+      console.warn(`  skipped (${error.message})`);
+    }
+  }
+  console.log(`Applied 006_add_sku_code_to_inventory.sql (${applied}/${statements.length} statements)`);
+
   await connection.end();
 })().catch((error) => { console.error(error.message); process.exit(1); });
 NODE

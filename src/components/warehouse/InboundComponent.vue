@@ -12,7 +12,8 @@
       <el-row :gutter="20">
         <el-col :xs="24" :sm="12">
           <el-form-item label="房间编号">
-            <el-select v-model="form.home" filterable allow-create default-first-option placeholder="选择或输入房间编号" popper-class="warehouse-select-popper">
+            <!-- 不加 allow-create：后端对房间号做白名单校验，允许手输任何自定义值必然 400 -->
+            <el-select v-model="form.home" filterable placeholder="选择房间编号" popper-class="warehouse-select-popper">
               <el-option v-for="room in rooms" :key="room.value" :label="room.label" :value="room.value" />
             </el-select>
           </el-form-item>

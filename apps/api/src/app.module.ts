@@ -10,6 +10,7 @@ import { validateEnvironment } from './config/env.validation';
 import { DatabaseModule } from './database/database.module';
 import { OperationLogsModule } from './modules/operation-logs/operation-logs.module';
 import { SensorModule } from './modules/sensor/sensor.module';
+import { SkuModule } from './modules/sku/sku.module';
 import { AirConditionerModule } from './modules/air-conditioner/air-conditioner.module';
 
 @Module({
@@ -29,6 +30,7 @@ import { AirConditionerModule } from './modules/air-conditioner/air-conditioner.
     HealthModule,
     TelemetryModule,
     InventoryModule,
+    SkuModule,
     AuthModule,
     AiModule,
     OperationLogsModule,

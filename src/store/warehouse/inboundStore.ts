@@ -3,6 +3,7 @@ import { computed, reactive, ref } from 'vue'
 import axios from "@/store/SetAxios";
 import { ElMessage } from 'element-plus'
 import * as XLSX from 'xlsx'
+import { apiErrorMessage } from '@/store/apiError'
 
 interface FormState {
     home: string
@@ -92,20 +93,30 @@ export const useInboundStore = defineStore('inbound', () => {
   const invalidImportRows = computed(() => importRows.value.filter((row) => !asValidRow(row)))
 
   const onSubmit = async () => {
+    // 先在前端拦掉最常见的两个空值，免得白跑一趟后端拿回 400
+    if (!form.home) {
+      ElMessage.warning('请先选择房间编号')
+      return
+    }
+    if (!form.name.trim()) {
+      ElMessage.warning('请填写物品名称')
+      return
+    }
+
     submitting.value = true
     try {
-      const response = await axios.post<{ success: boolean; message?: string }>('/inventory/inbound', form)
-        console.log(response);
-        
-      if (response.status == 200) {
-        ElMessage.success('入库操作提交成功')
-        onReset() // 重置表单
-      } else {
-        ElMessage.error(response.data || '入库操作提交失败')
-      }
+      await axios.post('/inventory/inbound', form)
+      // 不要再判断 response.status === 200：
+      //   · axios 对任何非 2xx 响应都会直接抛异常，能走到这里就代表成功；
+      //   · 后端 @Post 默认返回 201 Created（不是 200），
+      //     之前按 200 判断会把成功当成失败，弹出服务端的 "Inbound completed"。
+      ElMessage.success('入库操作提交成功')
+      onReset() // 重置表单
     } catch (error) {
       console.error('入库操作提交错误:', error)
-      ElMessage.error('入库操作提交失败，请稍后重试')
+      // 显示服务端返回的真实原因（例如"home must be one of the following values..."），
+      // 否则用户只看到一句笼统的提示，无法知道是哪个字段有问题。
+      ElMessage.error(apiErrorMessage(error, '入库操作提交失败，请稍后重试'))
     } finally {
       submitting.value = false
     }

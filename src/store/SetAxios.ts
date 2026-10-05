@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { clearAuthStorage, readToken } from './authStorage';
 
 // 创建一个函数来返回配置好的 axios 实例
 export function getAxiosInstance() {
@@ -11,6 +12,9 @@ export function getAxiosInstance() {
     // 添加请求拦截器用于调试
     instance.interceptors.request.use(
         (config) => {
+            // 后端已启用全局 JwtAuthGuard，缺少这个请求头会直接返回 401。
+            const token = readToken();
+            if (token) config.headers.Authorization = `Bearer ${token}`;
             console.log(`🚀 发送请求: ${config.method?.toUpperCase()} ${config.baseURL}${config.url}`);
             return config;
         },
@@ -27,12 +31,24 @@ export function getAxiosInstance() {
             return response;
         },
         (error) => {
+            const status = error.response?.status;
+
+            // token 缺失或已过期：清掉本地会话并回到登录页。
+            // 这里刻意用整页跳转而不是 router.push —— 本文件若 import router
+            // 会与 loginAuthStore 形成循环依赖。
+            if (status === 401) {
+                clearAuthStorage();
+                if (!window.location.pathname.startsWith('/login')) {
+                    window.location.replace('/login');
+                }
+            }
+
             // `data` carries the server's own error payload (NestJS returns
             // { statusCode, message, path }). Without it a failure only shows a
             // bare status code and the real cause stays invisible.
             console.error('❌ 请求失败:', {
                 url: error.config?.url,
-                status: error.response?.status,
+                status,
                 statusText: error.response?.statusText,
                 message: error.message,
                 data: error.response?.data

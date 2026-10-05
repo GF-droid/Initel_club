@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer';
-import { ArrayMaxSize, ArrayMinSize, IsArray, IsIn, IsNotEmpty, IsNumber, IsOptional, IsString, Min, ValidateNested } from 'class-validator';
+import { ArrayMaxSize, ArrayMinSize, IsArray, IsIn, IsInt, IsNotEmpty, IsNumber, IsOptional, IsString, Max, MaxLength, Min, ValidateNested } from 'class-validator';
 import { ROOM_IDS } from '../../telemetry/telemetry.constants';
 
 export class InboundDto {
@@ -27,6 +27,12 @@ export class InboundDto {
   @IsOptional()
   @IsString()
   content?: string;
+
+  /** 可选的物资编码。不传时按名称匹配主数据，没有就自动建档。 */
+  @IsOptional()
+  @IsString()
+  @MaxLength(32)
+  skuCode?: string;
 }
 
 export class InboundBatchDto {
@@ -58,4 +64,53 @@ export class OutboundDto {
   @IsOptional()
   @IsString()
   content?: string;
+
+  /** 可选的物资编码。不传时按名称匹配主数据。 */
+  @IsOptional()
+  @IsString()
+  @MaxLength(32)
+  skuCode?: string;
+}
+
+export class LedgerQueryDto {
+  @IsOptional()
+  @IsIn(ROOM_IDS)
+  roomId?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(32)
+  skuCode?: string;
+
+  /** 按物资名称快照模糊匹配 */
+  @IsOptional()
+  @IsString()
+  @MaxLength(128)
+  keyword?: string;
+
+  @IsOptional()
+  @IsIn(['inbound', 'outbound', 'adjust'])
+  operation?: string;
+
+  /** 与 endTime 成对提供；接受 ISO 8601 或 'YYYY-MM-DD HH:MM:SS' */
+  @IsOptional()
+  @IsString()
+  startTime?: string;
+
+  @IsOptional()
+  @IsString()
+  endTime?: string;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(500)
+  limit?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  offset?: number;
 }

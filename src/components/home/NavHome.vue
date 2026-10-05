@@ -21,8 +21,13 @@
       </el-sub-menu>
 
       <el-menu-item index="/home/warehouse"><el-icon><Box /></el-icon><span>出入库操作</span></el-menu-item>
+      <el-menu-item index="/home/ledger"><el-icon><Tickets /></el-icon><span>库存流水</span></el-menu-item>
+      <el-menu-item index="/home/sku"><el-icon><Goods /></el-icon><span>物资档案</span></el-menu-item>
       <el-menu-item index="/home/search"><el-icon><Search /></el-icon><span>智能搜索</span></el-menu-item>
-      <el-menu-item index="/home/monitoring"><el-icon><VideoCamera /></el-icon><span>仓储监控</span></el-menu-item>
+      <!-- 仓储监控：功能尚未实现，暂时下线。
+           恢复时取消下面一行的注释，并把 VideoCamera 加回 @element-plus/icons-vue 的导入列表，
+           同时恢复 router/index.ts 里的 monitoring 路由。 -->
+      <!-- <el-menu-item index="/home/monitoring"><el-icon><VideoCamera /></el-icon><span>仓储监控</span></el-menu-item> -->
 
       <div class="menu-caption menu-caption--secondary">辅助工具</div>
       <el-menu-item index="/home/ai-assistant">
@@ -44,7 +49,8 @@
 
 <script lang="ts" setup name="NavHome">
 import { useRoute, useRouter } from 'vue-router'
-import { Box, CircleCheckFilled, DataAnalysis, Histogram, MagicStick, Search, Setting, SwitchButton, TrendCharts, VideoCamera } from '@element-plus/icons-vue'
+// 仓储监控下线后 VideoCamera 不再使用；恢复菜单项时把它加回下面这行
+import { Box, CircleCheckFilled, DataAnalysis, Goods, Histogram, MagicStick, Search, Setting, SwitchButton, Tickets, TrendCharts } from '@element-plus/icons-vue'
 import { useLoginAuthStore } from '@/store/login/loginAuthStore'
 import { ElMessageBox } from 'element-plus'
 

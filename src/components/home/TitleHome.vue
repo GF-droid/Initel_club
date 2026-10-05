@@ -29,8 +29,10 @@ const pageTitles: Record<string, string> = {
   '/home/Data': '仓库空调控制',
   '/home/Chart': '历史数据分析',
   '/home/warehouse': '出入库管理',
+  '/home/ledger': '库存流水',
+  '/home/sku': '物资档案',
   '/home/search': '智能搜索',
-  '/home/monitoring': '仓储监控',
+  // '/home/monitoring': '仓储监控',   // 仓储监控功能尚未实现，暂时下线
   '/home/ai-assistant': 'AI 助手'
 }
 
